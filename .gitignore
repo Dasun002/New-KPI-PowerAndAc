@@ -1,0 +1,38 @@
+# macOS
+.DS_Store
+
+# Visual Studio and VS Code
+.vs/
+.vscode/
+
+# Backend .NET build and publish output
+backend/bin/
+backend/obj/
+backend/publish/
+
+# Frontend dependencies and generated output
+frondend/node_modules/
+frondend/dist/
+frondend/.angular/
+
+# Local IDE-specific files
+backend/*.user
+
+# Local secrets and configuration
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Root archive files
+/backend.zip
+/frondend.zip
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+/tmp/
+/temp/
+**/tmp/
+**/temp/

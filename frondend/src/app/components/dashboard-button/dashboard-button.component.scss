@@ -1,0 +1,73 @@
+/* File: dashboard-button.component.scss
+   Description: Dashboard button styles
+   Purpose: Styling for dashboard navigation button with hover and active states
+*/
+
+/* ========== COMPONENT STYLES ========== */
+
+/* Host container - inline flex layout */
+:host {
+  display: inline-flex;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* ========== BUTTON STYLES ========== */
+
+/* Navigation button base styles */
+.nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.15s ease;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.15);
+}
+
+/* ========== BUTTON STATES ========== */
+
+/* Hover and focus states */
+/* Hover */
+.nav-btn:hover,
+.nav-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.25);
+}
+
+/* Active page state */
+/* Active (current page) state */
+.nav-btn.active,
+.nav-btn.active:hover {
+  background: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.45);
+  color: #fff;
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.25);
+  transform: translateY(-1px);
+}
+
+/* Add optional icon style (if used later) */
+.nav-btn .material-symbols-outlined {
+  font-size: 18px;
+  opacity: 0.9;
+  transition: transform 0.15s ease;
+}
+
+.nav-btn:hover .material-symbols-outlined {
+  transform: scale(1.08);
+}

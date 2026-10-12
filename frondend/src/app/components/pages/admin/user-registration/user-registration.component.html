@@ -1,0 +1,227 @@
+<!-- user-registration.component.html -->
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <h1>{{ pageTitle }}</h1>
+    </div>
+    <div class="page-header-meta">
+      <span class="badge bg-primary user-count-pill">
+        {{ users.length }} user{{ users.length !== 1 ? 's' : '' }}
+      </span>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Form Column -->
+    <div class="col-lg-5 col-xl-4">
+      <div #formCard class="card shadow-sm border-0 h-100 form-card" [class.card-editing]="editingUser">
+        <div class="card-body p-4">
+          <form (submit)="handleSubmit($event)" class="needs-validation" novalidate>
+            <h3 class="card-title mb-4 text-primary">
+              {{ editingUser ? 'Edit User' : 'Create User' }}
+            </h3>
+
+            <div *ngIf="editingUser" class="editing-banner mb-4">
+              <i class="bi bi-pencil-square me-2"></i>
+              Editing {{ editingUser.name }} (Service No: {{ editingUser.serviceId }})
+            </div>
+
+            <!-- Name Input -->
+            <div class="mb-3">
+              <label for="name" class="form-label fw-semibold">Name</label>
+              <input type="text" id="name" name="name" class="form-control" [(ngModel)]="formData.name" #nameField
+                placeholder="Enter full name" required [disabled]="isLoading" />
+            </div>
+
+            <!-- Service Number Input -->
+            <div class="mb-3">
+              <label for="serviceId" class="form-label fw-semibold">Service ID (e.g. 12345)</label>
+              <input type="text" id="serviceId" name="serviceId" class="form-control" [(ngModel)]="formData.serviceId"
+                placeholder="Enter service ID" required [disabled]="isLoading" />
+            </div>
+
+            <!-- Assign Pages Section -->
+            <div class="mb-4">
+              <label class="form-label fw-semibold mb-3">Assign Pages</label>
+              <div class="row g-2">
+                <div *ngFor="let page of availablePages" class="col-md-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" [id]="'page-' + page.pageId"
+                      [checked]="isPageSelected(page.pageId)" (change)="handlePageChange(page)"
+                      [disabled]="isLoading" />
+                    <label class="form-check-label" [for]="'page-' + page.pageId">
+                      {{ page.name }}
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- User Role Section -->
+            <div class="mb-4">
+              <label class="form-label fw-semibold mb-3">User Role</label>
+              <div class="d-flex gap-4">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="role" id="role-user" value="User"
+                    [(ngModel)]="formData.role" (ngModelChange)="handleRoleChange()" [disabled]="isLoading" />
+                  <label class="form-check-label" for="role-user">
+                    User
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="role" id="role-padmin" value="PlatformAdmin"
+                    [(ngModel)]="formData.role" (ngModelChange)="handleRoleChange()" [disabled]="isLoading" />
+                  <label class="form-check-label" for="role-padmin">
+                    Platform Admin
+                  </label>
+                </div>
+              </div>
+            </div>
+
+
+
+            <!-- Messages -->
+            <div *ngIf="error" class="alert alert-danger alert-dismissible fade show" role="alert">
+              <i class="bi bi-exclamation-triangle me-2"></i>
+              {{ error }}
+              <button type="button" class="btn-close" (click)="error = ''" [disabled]="isLoading"></button>
+            </div>
+
+            <div *ngIf="success" class="alert alert-success alert-dismissible fade show" role="alert">
+              <i class="bi bi-check-circle me-2"></i>
+              {{ success }}
+              <button type="button" class="btn-close" (click)="success = ''" [disabled]="isLoading"></button>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary btn-lg" [disabled]="isLoading">
+                <span *ngIf="isLoading" class="spinner-border spinner-border-sm me-2" role="status"></span>
+                <i class="bi" [ngClass]="editingUser ? 'bi-check-lg' : 'bi-person-plus'" *ngIf="!isLoading"></i>
+                {{ editingUser ? (isLoading ? 'Updating...' : 'Update User') : (isLoading ? 'Creating...' : 'Create
+                User') }}
+              </button>
+
+              <button *ngIf="editingUser" type="button" (click)="cancelEdit()" class="btn btn-outline-secondary btn-lg"
+                [disabled]="isLoading">
+                <i class="bi bi-x-circle me-1"></i>Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- User List Column -->
+    <div class="col-lg-7 col-xl-8">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="card-title text-primary mb-0">User List</h3>
+            <button type="button" class="btn btn-outline-primary btn-sm" (click)="fetchUsers()" [disabled]="isLoading">
+              <i class="bi bi-arrow-clockwise me-1"></i>
+              {{ isLoading ? 'Refreshing...' : 'Refresh' }}
+            </button>
+          </div>
+
+          <!-- Loading Indicator -->
+          <div *ngIf="isLoading && users.length === 0" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-muted mt-3">Loading users from backend...</p>
+          </div>
+
+          <div *ngIf="users.length === 0 && !isLoading" class="text-center py-5">
+            <div class="text-muted mb-3">
+              <i class="bi bi-people fs-1 opacity-50"></i>
+            </div>
+            <p class="text-muted">No users found in the database.</p>
+            <button type="button" class="btn btn-outline-primary" (click)="fillBasicTestData()">
+              <i class="bi bi-plus-circle me-1"></i>Create Test User
+            </button>
+          </div>
+
+          <div class="table-responsive" *ngIf="users.length > 0 && !isLoading">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Service ID</th>
+                  <th>Status</th>
+                  <th>Role</th>
+                  <th>Pages</th>
+                  <th>Created</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let user of users" class="user-row" [class.editing]="editingUser?.userId === user.userId">
+                  <td>
+                    <div class="user-info">
+                      <div class="user-avatar" [style.background]="getAvatarColor(user.name)">
+                        {{ user.name.charAt(0) }}
+                      </div>
+                      <div>
+                        <div class="user-name fw-bold">{{ user.name }}</div>
+                        <span *ngIf="editingUser?.userId === user.userId" class="badge bg-warning text-dark">
+                          Editing
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="service-number">
+                      {{ user.serviceId }}
+                    </div>
+                  </td>
+                  <td>
+                    <span class="status-badge" [class.active]="user.isActive">
+                      <i class="bi bi-circle-fill me-1"></i>
+                      {{ user.isActive ? 'Active' : 'Inactive' }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="badge" [ngClass]="user.role === 'PlatformAdmin' ? 'bg-info text-dark font-semibold' : 'bg-light text-dark border'">
+                      {{ user.role }}
+                    </span>
+                  </td>
+                  <td class="pages-cell">
+                    <div class="pages-display-wrapper" *ngIf="user.role === 'PlatformAdmin'">
+                      <div class="assigned-pages d-flex flex-wrap gap-1">
+                        <span *ngFor="let page of user.pages" class="badge bg-light text-dark border">
+                          {{ page }}
+                        </span>
+                      </div>
+                      <span *ngIf="user.pages.length > 1" class="more-indicator-badge">
+                        +{{ user.pages.length - 1 }}
+                      </span>
+                    </div>
+                    <span class="text-muted" *ngIf="user.role !== 'PlatformAdmin'">—</span>
+                  </td>
+                  <td>
+                    <div class="date-info">
+                      {{ user.createdAt | date:'yyyy-MM-dd' }}
+                    </div>
+                  </td>
+                  <td class="text-end">
+                    <div class="action-buttons">
+                      <button (click)="handleEdit(user)" class="btn btn-warning btn-sm"
+                        [disabled]="editingUser?.userId === user.userId || isLoading" title="Edit">
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                      <button *ngIf="user.role !== 'SuperAdmin'" (click)="handleDelete(user.userId)"
+                        class="btn btn-outline-danger btn-sm" [disabled]="isLoading" title="Delete">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

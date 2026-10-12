@@ -1,0 +1,214 @@
+<div class="page-container">
+  <div class="page-header d-flex flex-wrap align-items-start justify-content-between gap-3">
+    <div>
+      <h1>{{ pageTitle }}</h1>
+      <p class="page-subtitle">Telemetry and O&amp;M Power &amp; Air Conditioning KPI metrics</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       TABLE 1 — TELEMETRY
+  ═══════════════════════════════════════════════════ -->
+  <div class="mt-4">
+
+    <!-- Filter bar — same style as Aged Network Failures -->
+    <form (submit)="$event.preventDefault()" class="filters-form mb-4">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label">Month:</label>
+          <select class="form-select" [(ngModel)]="telMonth" name="telMonth" (change)="onMonthYearChange()">
+            <option *ngFor="let m of monthOptions" [value]="m.value">{{ m.label }}</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Year:</label>
+          <select class="form-select" [(ngModel)]="telYear" name="telYear" (change)="onMonthYearChange()">
+            <option *ngFor="let y of yearOptions" [value]="y">{{ y }}</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">R-GM:</label>
+          <select class="form-select" [(ngModel)]="telRegion" name="telRegion" (change)="onRegionChange()">
+            <option value="">All</option>
+            <option *ngFor="let r of regionOptions" [value]="r">{{ r }}</option>
+          </select>
+        </div>
+      </div>
+    </form>
+
+    <div class="selected-filters mb-4">
+      <div class="filter-chip">
+        <span class="filter-label">Month:</span>
+        <span class="filter-value">{{ telMonthLabel }}</span>
+      </div>
+      <div class="filter-chip">
+        <span class="filter-label">Year:</span>
+        <span class="filter-value">{{ telYear }}</span>
+      </div>
+      <div class="filter-chip">
+        <span class="filter-label">R-GM:</span>
+        <span class="filter-value">{{ telRegion || 'All' }}</span>
+      </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-broadcast-pin me-2"></i>Telemetry</h5>
+      </div>
+      <div class="card-body p-0">
+
+        <div *ngIf="telLoading" class="text-center py-4">
+          <div class="spinner-border text-primary" role="status"></div>
+          <p class="text-muted mt-2">Loading Telemetry data...</p>
+        </div>
+
+        <div *ngIf="telError && !telLoading" class="alert alert-danger m-3">
+          {{ telError }}
+          <button class="btn btn-outline-danger btn-sm ms-3" (click)="refresh()">Retry</button>
+        </div>
+
+        <div *ngIf="!telLoading && !telError" class="table-responsive">
+          <table class="table table-hover table-bordered mb-0 data-table">
+            <thead class="table-dark">
+              <tr>
+                <th>No.</th>
+                <th>RTOM Area</th>
+                <th>R-GM</th>
+                <th>P-DGM</th>
+                <th>NW EE</th>
+                <th>Achivement (%)</th>
+                <th>Node Count</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of tableRows; let i = index">
+                <td class="text-center">{{ i + 1 }}</td>
+                <td><strong>{{ row.friendlyName }}</strong></td>
+                <td>{{ row.region || '—' }}</td>
+                <td>{{ row.province || '—' }}</td>
+                <td>{{ row.networkEngineer }}</td>
+                <td class="text-center" style="min-width: 120px;">
+                  <ng-container *ngIf="!row.isEditing">
+                    {{ row.percentage | number:'1.2-2' }}%
+                  </ng-container>
+                  <ng-container *ngIf="row.isEditing">
+                    <input type="number" class="form-control form-control-sm mx-auto" style="width: 80px;"
+                      [(ngModel)]="row.percentage">
+                  </ng-container>
+                </td>
+                <td class="text-center" style="min-width: 120px;">
+                  <ng-container *ngIf="!row.isEditing">
+                    {{ row.node_Count ?? '—' }}
+                  </ng-container>
+                  <ng-container *ngIf="row.isEditing">
+                    <input type="number" class="form-control form-control-sm mx-auto" style="width: 80px;"
+                      [(ngModel)]="row.node_Count">
+                  </ng-container>
+                </td>
+                <td class="text-center" style="min-width: 120px;">
+                  <ng-container *ngIf="isEditingAllowed">
+                    <button *ngIf="!row.isEditing" class="btn btn-sm btn-outline-primary" (click)="editRow(row)">
+                      <i class="bi bi-pencil"></i> Edit
+                    </button>
+                    <div *ngIf="row.isEditing" class="d-flex justify-content-center gap-2">
+                      <button class="btn btn-sm btn-success d-flex align-items-center justify-content-center"
+                        style="width: 32px; height: 32px; padding: 0;" (click)="saveRow(row)" title="Save">
+                        <i class="bi bi-check-lg"></i>
+                      </button>
+                      <button class="btn btn-sm btn-danger d-flex align-items-center justify-content-center"
+                        style="width: 32px; height: 32px; padding: 0;" (click)="cancelEdit(row)" title="Cancel">
+                        <i class="bi bi-x-lg"></i>
+                      </button>
+                    </div>
+                  </ng-container>
+                  <span *ngIf="!isEditingAllowed" class="text-muted">—</span>
+                </td>
+              </tr>
+              <tr *ngIf="!tableRows.length">
+                <td colspan="8" class="text-center py-5 text-muted">
+                  <i class="bi bi-folder2-open d-block mb-2 fs-2"></i>
+                  No data for the selected filters.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       TABLE 2 — O&M POWER & AIR CONDITIONING
+  ═══════════════════════════════════════════════════ -->
+ <!-- <div class="mt-5">
+
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-lightning-charge me-2"></i>O&amp;M of Power &amp; Air Conditioning</h5>
+        <div class="d-flex align-items-center gap-2">
+          <label class="text-white mb-0 fw-semibold" style="font-size: 14.5px;">Year:</label>
+          <select class="form-select form-select-sm pac-year-select" [(ngModel)]="pacYear" name="pacYear"
+            (change)="onPacYearChange()">
+            <option *ngFor="let y of yearOptions" [value]="y">{{ y }}</option>
+          </select>
+        </div>
+      </div>
+      <div class="card-body p-0">
+
+        <div *ngIf="pacLoading" class="text-center py-4">
+          <div class="spinner-border text-primary" role="status"></div>
+          <p class="text-muted mt-2">Loading Power &amp; AC data...</p>
+        </div>
+
+        <div *ngIf="pacError && !pacLoading" class="alert alert-danger m-3">
+          {{ pacError }}
+          <button class="btn btn-outline-danger btn-sm ms-3" (click)="loadPowerAndAC()">Retry</button>
+        </div>
+
+        <div *ngIf="!pacLoading && !pacError" class="table-responsive">
+          <table class="table table-hover table-bordered mb-0 data-table text-nowrap">
+            <thead class="table-dark">
+              <tr>
+                <th rowspan="2" class="align-middle text-center" style="min-width: 120px;">Month</th>
+                <th *ngFor="let desig of pacDesignations" colspan="2" class="text-center">{{ desig }}</th>
+              </tr>
+              <tr>
+                <ng-container *ngFor="let desig of pacDesignations">
+                  <th class="text-center">Cum. Sched</th>
+                  <th class="text-center">Cum. Achieved</th>
+                </ng-container>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let m of monthOptions">
+                <td class="text-center fw-bold">{{ m.label }}</td>
+                <ng-container *ngFor="let desig of pacDesignations">
+                  <td class="text-center">{{ getPacValue(desig, m.value, 'sched') }}</td>
+                  <td class="text-center achievement-cell">
+                    {{ getPacValue(desig, m.value, 'achieved') }}
+                    <div class="approval-icon" *ngIf="isEditingAllowed && getPacRecord(desig, m.value)?.id"
+                      [ngClass]="getPacRecord(desig, m.value)?.isVerified ? 'approved' : 'unapproved'"
+                      (click)="togglePacVerified(desig, m.value)" title="Click to toggle approval">
+                      <i class="bi bi-check" *ngIf="getPacRecord(desig, m.value)?.isVerified"></i>
+                      <i class="bi bi-x" *ngIf="!getPacRecord(desig, m.value)?.isVerified"></i>
+                    </div>
+                  </td>
+                </ng-container>
+              </tr>
+              <tr *ngIf="!pacDesignations.length">
+                <td [attr.colspan]="1" class="text-center py-5 text-muted">
+                  <i class="bi bi-folder2-open d-block mb-2 fs-2"></i>
+                  No Power &amp; AC data for {{ pacYear }}.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div> -->
+
+</div>

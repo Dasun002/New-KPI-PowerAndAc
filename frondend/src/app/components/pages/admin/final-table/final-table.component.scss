@@ -1,0 +1,433 @@
+// Styles the strategic KPI definition form, calculated fields, and responsive table layout.
+:host {
+  display: block;
+  min-height: 100vh;
+  position: relative;
+  font-family: Arial, sans-serif;
+  color: #102136;
+  background-image: url('/NW_KPI_Monitoring/assets/admin/SLT-Mobitel.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+:host::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.308), rgba(245, 250, 255, 0.308));
+  backdrop-filter: blur(9px);
+  z-index: 0;
+}
+
+:host {
+  --accent-primary: #0057a6;
+  --accent-secondary: #02b28c;
+  --card-shadow: 0 18px 35px rgba(8, 50, 94, 0.12);
+  --card-border: rgba(255, 255, 255, 0.45);
+
+  z-index: 0;
+}
+
+.page-container {
+  padding: 1.75rem clamp(1.25rem, 3vw, 3.5rem) 2.5rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+}
+
+.page-header {
+  padding: 1.5rem 0 1.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  position: relative;
+  margin-bottom: 2.5rem;
+  align-items: center;
+  text-align: center;
+}
+
+.page-header h1 {
+  color: #0057A6;
+  font-size: 2.1rem;
+  font-weight: 600;
+  font-family: Arial, sans-serif;
+  letter-spacing: 0.3px;
+  margin: 0.5rem 0;
+}
+
+.dashboard-container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.form-container {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 2.5rem;
+  border: 1px solid #eef2f6;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
+  margin-bottom: 3rem;
+}
+
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.form-header h2 {
+  color: #102136;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.form-header p {
+  color: #94a3b8;
+  margin: 0.25rem 0 0;
+}
+
+.form-sub {
+  font-size: 0.95rem;
+}
+
+.kpi-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  color: #334155;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.form-group input,
+.form-group textarea {
+  padding: 0.85rem 1rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  font-size: 0.95rem;
+  color: #102136;
+  transition: all 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  background: white;
+  box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+.form-group textarea {
+  min-height: 100px;
+}
+
+.span-2 {
+  grid-column: span 2;
+}
+
+.span-full {
+  grid-column: span 3;
+}
+
+/* Weightage row (Points | Total Points | Save | Weightage) */
+.weightage-row {
+  width: 100%;
+  grid-column: 1 / -1;
+
+  display: flex;
+  align-items: flex-end;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.weightage-row .form-group {
+  flex: 1;
+  min-width: 220px;
+}
+
+.button-group {
+  display: flex;
+  align-items: flex-end;
+}
+
+
+/* hide SR-only labels used only for accessibility */
+.sr-only {
+
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+
+/* Make the inline Save button align with inputs */
+.form-actions-inline {
+  display: flex;
+  align-items: flex-end;
+}
+
+.weightage-display-box {
+  height: 52px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  background: #eff6ff;
+  border: 1.5px solid #3b82f6;
+  border-radius: 12px;
+
+  font-size: 1rem;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+
+
+.total-points-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.total-points-row input {
+  flex: 1;
+}
+
+.total-points-btn {
+  padding: 0 1.5rem;
+  white-space: nowrap;
+  border-radius: 10px;
+  border: none;
+  background: #f1f5f9;
+  color: #475569;
+  font-weight: 600;
+  cursor: pointer;
+  height: 52px;
+}
+
+
+.total-points-btn:hover {
+  background: #f8fafc;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-submit {
+  background: linear-gradient(135deg, var(--accent-primary), #0078d4);
+  padding: 0.8rem 2.2rem;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 87, 166, 0.2);
+
+  height: 52px;
+  white-space: nowrap;
+}
+
+
+.btn-submit:hover {
+  filter: brightness(0.96);
+}
+
+.btn-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-cancel {
+  padding: 0.8rem 1.8rem;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #e2e8f0;
+  background: white;
+  color: #64748b;
+}
+
+.btn-cancel:hover {
+  background: #f8fafc;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.table-responsive {
+  overflow-x: auto;
+  border-radius: 18px;
+  background: white;
+  box-shadow: var(--card-shadow);
+}
+
+.kpi-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+.kpi-table thead {
+  background: #0057a6;
+}
+
+.kpi-table th {
+  padding: 1rem;
+  color: white;
+  font-size: 0.9rem;
+  text-align: left;
+  border-right: 1px solid rgba(255, 255, 255, 0.85);
+  background-clip: padding-box;
+}
+
+.kpi-table th:last-child {
+  border-right: none;
+}
+
+.kpi-table thead tr:first-child th:first-child {
+  border-top-left-radius: 12px;
+}
+
+.kpi-table thead tr:first-child th:last-child {
+  border-top-right-radius: 12px;
+}
+
+.kpi-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+
+.kpi-table tbody tr:hover {
+  background: rgba(15, 102, 195, 0.05);
+}
+
+.no-data {
+  text-align: center;
+  padding: 1.5rem 0;
+  color: #6b7280;
+}
+
+.actions-col {
+  width: 130px;
+  text-align: center;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Preserve existing Edit/Delete buttons (class names come from TS/HTML) */
+.btn-edit {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-edit:hover {
+  filter: brightness(0.95);
+}
+
+.btn-delete {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-delete:hover {
+  filter: brightness(0.95);
+}
+
+.btn-edit:disabled,
+.btn-delete:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+
+@media(max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .weightage-row {
+    grid-template-columns: 1fr !important;
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+
+}
+
+
+@font-face {
+  font-family: Arial, sans-serif;
+  src: url('/assets/fonts/SpaceGrotesk/SpaceGrotesk-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: Arial, sans-serif;
+  src: url('/assets/fonts/SpaceGrotesk/SpaceGrotesk-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: Arial, sans-serif;
+  src: url('/assets/fonts/SpaceGrotesk/SpaceGrotesk-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+

@@ -1,0 +1,142 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+  color: #102136;
+  background-image: url('/NW_KPI_Monitoring/assets/admin/SLT-Mobitel.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  position: relative;
+  overflow-x: auto; // ✅ allow horizontal scrolling
+}
+
+:host::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(248, 250, 252, 0.55);
+  backdrop-filter: blur(6px);
+  z-index: 0;
+}
+
+.kpi-page {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  padding: 3rem 1.5rem 4rem;
+  background: linear-gradient(
+    135deg,
+    rgba(240, 247, 255, 0.65),
+    rgba(198, 224, 255, 0.45)
+  );
+  border: 1px solid rgba(16, 33, 54, 0.08);
+  backdrop-filter: blur(4px);
+
+  overflow-y: visible;           // ✅ keep vertical flow
+  overflow-x: auto;              // ✅ FIX: allow left-right scroll
+}
+
+.kpi-overlay {
+  position: absolute;
+  inset: 0;
+  background: url('/assets/admin/network-grid.svg') center/600px repeat,
+    linear-gradient(135deg, rgba(16, 33, 54, 0.08), rgba(0, 122, 211, 0.08));
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.hero-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.5rem;
+  padding-bottom: 1rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.hero-content h1 {
+  font-size: 2.1rem;
+  margin: 0 0 0.5rem 0;
+  color: #0057A6;
+  font-weight: 600;
+  font-family: Arial, sans-serif;
+  letter-spacing: 0.3px;
+}
+
+.hero-subtitle {
+  margin: 0;
+  color: #6b7b8c;
+  font-size: 1rem;
+  font-family: Arial, sans-serif;
+}
+
+/* ===================== TABLE SCROLL FIX ===================== */
+
+.table-scroll,
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;              // ✅ horizontal scrollbar
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ===================== TABLE ===================== */
+
+.data-table {
+  border-collapse: collapse;
+  min-width: max-content;        // ✅ FORCE horizontal expansion
+  font-size: 0.95rem;
+  border-radius: 0 0 12px 12px;
+}
+
+.data-table thead th {
+  background: linear-gradient(180deg, #3b7dbf 0%, #1e40af 100%);
+  color: #fff;
+  padding: 0.85rem 0.75rem;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  white-space: nowrap;           // ✅ prevent column shrink
+  letter-spacing: 0.4px;
+  border-right: 1px solid rgba(255, 255, 255, 0.85);
+}
+
+.data-table thead th:last-child {
+  border-right: none;
+}
+
+.data-table tbody td {
+  border: 1px solid rgba(15, 27, 44, 0.08);
+  padding: 0.8rem 0.75rem;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.92);
+  white-space: nowrap;           // ✅ prevent column shrink
+}
+
+.data-table tbody tr:nth-child(even) td {
+  background: rgba(244, 248, 255, 0.9);
+}
+
+.data-table tbody tr:hover td {
+  background: #eef5ff;
+}
+
+/* ===================== RESPONSIVE ===================== */
+
+@media (max-width: 1024px) {
+  .hero-panel {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .kpi-page {
+    padding: 2rem 1rem 3rem;
+  }
+
+  .data-table {
+    min-width: max-content;      // ✅ keep scrolling on mobile
+  }
+}

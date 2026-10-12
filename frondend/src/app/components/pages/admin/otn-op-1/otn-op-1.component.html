@@ -1,0 +1,86 @@
+<!-- Renders OTN OP1 KPI definitions and their add/edit/delete actions. -->
+<div class="page-container">
+  <div class="page-header">
+    <h1>{{ pageTitle }}</h1>
+  </div>
+
+  <div class="dashboard-container">
+
+    <section class="form-section">
+      <div class="form-container">
+        <div class="form-header">
+          <div>
+            <h2>{{ editingId ? 'Update KPI' : 'Create KPI' }}</h2>
+            <p class="form-note">Create or update OTN OP_01 KPI definitions</p>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn-submit" form="otn-op-1-form" [disabled]="form.invalid || saving">{{
+              editingId ? 'Update' : 'Add' }}</button>
+            <button type="button" class="btn-cancel" *ngIf="editingId" (click)="onCancelEdit()"
+              [disabled]="saving">Cancel</button>
+          </div>
+        </div>
+
+        <form id="otn-op-1-form" class="kpi-form" [formGroup]="form" (ngSubmit)="onSubmit()">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Network Engineer KPI</label>
+              <input type="text" formControlName="networkEngineerKpi" placeholder="Network Engineer KPI" required />
+            </div>
+
+            <div class="form-group">
+              <label>Category</label>
+              <input type="text" formControlName="division" placeholder="Category" />
+            </div>
+
+            <div class="form-group">
+              <label>Target</label>
+              <input type="text" formControlName="section" placeholder="Target" />
+            </div>
+
+            <div class="form-group">
+              <label>Weightage (%)</label>
+              <input type="number" formControlName="kpiPercent" placeholder="Weightage (%)" />
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="table-section">
+      <div class="state" *ngIf="loading">Loading KPI data...</div>
+      <div class="state error" *ngIf="!loading && errorMessage">{{ errorMessage }}</div>
+      <div class="state" *ngIf="!loading && !errorMessage && !records.length">No KPI entries yet.</div>
+
+      <div class="table-responsive" *ngIf="!loading && records.length">
+        <table class="kpi-table">
+          <thead>
+            <tr>
+              <th>Network Engineers KPI</th>
+              <th>Category</th>
+              <th>Target</th>
+              <th>Weightage (%)</th>
+              <th class="actions-col">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngFor="let record of records">
+              <td>{{ record.networkEngineerKpi }}</td>
+              <td>{{ record.division }}</td>
+              <td>{{ record.section }}</td>
+              <td>{{ record.kpiPercent }}</td>
+              <td class="actions-col">
+                <div class="action-buttons">
+                  <button type="button" class="btn-edit" (click)="onEdit(record)">Edit</button>
+                  <button type="button" class="btn-delete" (click)="onDelete(record.id)">Delete</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+</div>
