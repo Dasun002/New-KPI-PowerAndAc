@@ -70,6 +70,11 @@ export const platformNavOptions: NavOption[] = [
     title: 'Platform KPI — Routine Maintenance'
   },
   {
+    label: 'Power & A/C',
+    path: 'platform/power-ac',
+    title: 'Platform KPI — Power & A/C'
+  },
+  {
     label: 'Other Operator',
     path: 'platform/tower-mtce-achievement',
     title: 'Platform KPI — Other Operator'
@@ -139,6 +144,11 @@ export const adminNavOptions: NavOption[] = [
     label: 'Routine Maintenance',
     path: 'admin/routine-mtnc',
     title: 'Admin — Routine Maintenance'
+  },
+  {
+    label: 'Power & A/C',
+    path: 'admin/power-ac',
+    title: 'Admin — Power & A/C'
   },
   {
     label: 'E-mail Service',

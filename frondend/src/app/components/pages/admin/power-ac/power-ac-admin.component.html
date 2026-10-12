@@ -1,0 +1,126 @@
+<div class="admin-page">
+  <header class="page-title">
+    <h1>Power &amp; A/C Administration</h1>
+  </header>
+
+  <main class="admin-content">
+    <div *ngIf="errorMessage" class="alert alert-danger" role="alert">{{ errorMessage }}</div>
+    <div *ngIf="successMessage" class="alert alert-success" role="status">{{ successMessage }}</div>
+
+    <section class="entry-card">
+      <div class="entry-header">
+        <div>
+          <h2>{{ editingId === null ? 'Add Record' : 'Edit Record' }}</h2>
+          <p>Manage monthly Power &amp; A/C performance records</p>
+        </div>
+        <div class="entry-actions">
+          <button type="submit" class="primary-button" form="power-ac-form"
+            [disabled]="form.invalid || saving || deletingId !== null">
+            {{ saving ? 'Saving...' : editingId === null ? 'Add Record' : 'Save Changes' }}
+          </button>
+          <button *ngIf="editingId !== null" type="button" class="cancel-button"
+            (click)="cancelEdit()" [disabled]="saving">Cancel</button>
+        </div>
+      </div>
+
+      <form id="power-ac-form" [formGroup]="form" (ngSubmit)="submit()">
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="designation">Designation</label>
+            <input id="designation" formControlName="designation" maxlength="100" placeholder="Designation" required>
+            <span *ngIf="form.controls.designation.touched && form.controls.designation.invalid" class="field-error">
+              Enter a designation of no more than 100 characters.
+            </span>
+          </div>
+          <div class="form-field">
+            <label for="record-year">Year</label>
+            <input id="record-year" type="number" formControlName="year" min="2000" max="9999" required>
+          </div>
+          <div class="form-field">
+            <label for="record-month">Month</label>
+            <select id="record-month" formControlName="month">
+              <option *ngFor="let month of monthOptions" [ngValue]="month.value">{{ month.label }}</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="scheduled">Scheduled</label>
+            <input id="scheduled" type="number" formControlName="scheduled" min="0" required>
+          </div>
+          <div class="form-field">
+            <label for="attended">Attended</label>
+            <input id="attended" type="number" formControlName="attended" min="0" required>
+          </div>
+          <div class="form-field">
+            <label for="cumulative-scheduled">Cumulative Scheduled</label>
+            <input id="cumulative-scheduled" type="number" formControlName="cumulative_Sched" min="0" required>
+          </div>
+          <div class="form-field">
+            <label for="cumulative-achieved">Cumulative Achieved</label>
+            <input id="cumulative-achieved" type="number" formControlName="cumulative_Achieved" min="0" required>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <section class="records-section">
+      <div class="records-heading">
+        <h2>Power &amp; A/C Records</h2>
+        <label class="year-filter">
+          <span>Year</span>
+          <select [(ngModel)]="filterYear" [ngModelOptions]="{standalone: true}" (ngModelChange)="onYearChange()">
+            <option *ngFor="let year of yearOptions" [ngValue]="year">{{ year }}</option>
+          </select>
+        </label>
+      </div>
+
+      <div *ngIf="loading" class="loading-state" role="status">
+        <span class="spinner-border spinner-border-sm text-primary"></span>
+        Loading records...
+      </div>
+      <div *ngIf="!loading" class="table-scroll">
+        <table class="records-table">
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>Designation</th>
+              <th>Scheduled</th>
+              <th>Attended</th>
+              <th>Cumulative Scheduled</th>
+              <th>Cumulative Achieved</th>
+              <th>Verified</th>
+              <th class="actions-column">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let record of records">
+              <td>{{ monthLabel(record.month) }} {{ record.year }}</td>
+              <td>{{ record.designation }}</td>
+              <td>{{ record.scheduled }}</td>
+              <td>{{ record.attended }}</td>
+              <td>{{ record.cumulative_Sched }}</td>
+              <td>{{ record.cumulative_Achieved }}</td>
+              <td>
+                <span class="verified-pill" [class.is-verified]="record.isVerified">
+                  {{ record.isVerified ? 'Yes' : 'No' }}
+                </span>
+              </td>
+              <td class="actions-column">
+                <div class="row-actions">
+                  <button type="button" class="edit-button" (click)="edit(record)"
+                    [disabled]="saving || deletingId !== null">Edit</button>
+                  <button type="button" class="delete-button" (click)="delete(record)"
+                    [disabled]="saving || deletingId !== null">
+                    {{ deletingId === record.id ? 'Deleting...' : 'Delete' }}
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="records.length === 0">
+              <td colspan="8" class="empty-state">No Power &amp; A/C records found for {{ filterYear }}.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>

@@ -122,7 +122,8 @@ using (var scope = app.Services.CreateScope())
             new backend.Models.Page { PageId = 7, PageCode = "TOWER_MTCE_ACHIEVEMENT", PageName = "Tower Maintainance" },
             new backend.Models.Page { PageId = 8, PageCode = "ENTERPRISE_KPI", PageName = "Enterprise KPI" },
             new backend.Models.Page { PageId = 9, PageCode = "OTHER_OPERATOR_KPI", PageName = "Other Operator KPI" },
-            new backend.Models.Page { PageId = 10, PageCode = "OTHER_KPI", PageName = "Other KPI" }
+            new backend.Models.Page { PageId = 10, PageCode = "OTHER_KPI", PageName = "Other KPI" },
+            new backend.Models.Page { PageId = 11, PageCode = "POWER_AC", PageName = "Power & A/C" }
         };
 
         var existingPageIds = context.Pages.Select(p => p.PageId).ToList();

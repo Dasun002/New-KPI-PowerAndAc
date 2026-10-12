@@ -220,6 +220,7 @@ namespace backend.Controllers
                 "enterprisekpi" => (byte)8,
                 "otheroperatorkpi" => (byte)9,
                 "otherkpi" => (byte)10,
+                "powerac" => (byte)11,
                 _ => null
             };
         }

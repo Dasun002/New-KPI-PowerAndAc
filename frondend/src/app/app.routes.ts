@@ -69,6 +69,7 @@ export const routes: Routes = [
   { path: 'platform/otn-op', component: OtnOpComponent, canActivate: [AuthGuard] },
   { path: 'platform/tm-activity-plan', component: TmActivityPlanComponent, canActivate: [AuthGuard] },
   { path: 'platform/routine-mtnc', component: RoutineMtncComponent, canActivate: [AuthGuard] },
+  { path: 'platform/power-ac', loadComponent: () => import('./components/pages/platform/power-ac/power-ac.component').then(m => m.PowerAcPlatformComponent), canActivate: [AuthGuard] },
   { path: 'platform/tower-mtce-achievement', component: OtherOperatorComponent, canActivate: [AuthGuard] },
   
   /* Admin Routes - requires Admin or SuperAdmin role */
@@ -85,6 +86,7 @@ export const routes: Routes = [
   { path: 'admin/tm-activity-plan', component: TowerMtncComponent, canActivate: [AuthGuard], data: { roles: ['Admin', 'SuperAdmin'] } },
 
   { path: 'admin/routine-mtnc', component: AdminRoutineMtncComponent, canActivate: [AuthGuard], data: { roles: ['Admin', 'SuperAdmin'] } },
+  { path: 'admin/power-ac', loadComponent: () => import('./components/pages/admin/power-ac/power-ac-admin.component').then(m => m.PowerAcAdminComponent), canActivate: [AuthGuard], data: { roles: ['Admin', 'SuperAdmin'] } },
   { path: 'admin/email-service', component: EmailServiceComponent, canActivate: [AuthGuard], data: { roles: ['Admin', 'SuperAdmin'] } },
   { path: 'admin/final-table', component: FinalTableComponent, canActivate: [AuthGuard], data: { roles: ['Admin', 'SuperAdmin', 'PlatformAdmin', 'User'] } },
   { path: 'admin/enterprise-kpi', component: AdminEnterpriseKpiComponent, canActivate: [AuthGuard], data: { roles: ['Admin', 'SuperAdmin'] } },
