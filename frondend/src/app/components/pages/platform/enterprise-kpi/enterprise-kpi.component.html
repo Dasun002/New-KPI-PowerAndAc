@@ -68,13 +68,6 @@
             <option *ngFor="let engineer of dropdown3Options" [value]="engineer">{{ engineerNameMap[engineer] || engineer }}</option>
           </select>
         </div>
-        <div class="col-md-2">
-          <label for="dropdown4" class="form-label">RTOM AREA:</label>
-          <select id="dropdown4" class="form-select" [(ngModel)]="formValues.dropdown4" name="dropdown4" [disabled]="!formValues.dropdown3" (change)="onDropdownChange('dropdown4', $any($event.target)?.value || '')">
-            <option value="">Select an option</option>
-            <option *ngFor="let area of dropdown4Options" [value]="area">{{ optionMapping[area] || area }}</option>
-          </select>
-        </div>
       </div>
     </form>
 
@@ -82,61 +75,47 @@
       <div class="filter-chip"><span class="filter-label">R-GM:</span><span class="filter-value">{{ formValues.dropdown1 || 'Select an option' }}</span></div>
       <div class="filter-chip"><span class="filter-label">P-DGM:</span><span class="filter-value">{{ formValues.dropdown2 || 'Select an option' }}</span></div>
       <div class="filter-chip"><span class="filter-label">NW EE:</span><span class="filter-value">{{ formValues.dropdown3 ? (engineerNameMap[formValues.dropdown3] || formValues.dropdown3) : 'Select an option' }}</span></div>
-      <div class="filter-chip"><span class="filter-label">RTOM AREA:</span><span class="filter-value">{{ formValues.dropdown4 ? (optionMapping[formValues.dropdown4] || formValues.dropdown4) : 'Select an option' }}</span></div>
     </div>
 
     <div class="card shadow-sm border-0">
       <div class="card-header bg-primary text-white"><h5 class="mb-0"><i class="bi bi-building-fill me-2"></i>Enterprise KPI</h5></div>
       <div class="card-body p-0">
         <div class="table-responsive" *ngIf="data.length > 0; else noKpiData">
-          <ng-container *ngIf="getColumnsToRender() as columns">
-            <table class="table table-hover table-bordered mb-0 data-table">
-              <thead class="table-dark">
-                <tr>
-                  <th *ngFor="let column of columns">{{ headerMapping[column] || optionMapping[column] || column }}</th>
-                  <th *ngIf="formValues.dropdown4 && isEditingAllowed" style="width:120px"></th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let row of data">
-                  <td *ngFor="let column of columns">
-                    <ng-container *ngIf="nonEditableColumns.includes(column)">{{ getCellValue(row, column) || '-' }}</ng-container>
-                    <ng-container *ngIf="!nonEditableColumns.includes(column)">
-                      <ng-container *ngIf="isEditingRow(row); else readOnlyCell">
-                        <input *ngIf="column === metricColumnKey"
-                          type="number" class="form-control form-control-sm"
-                          [(ngModel)]="rowEditValues[getRowId(row)].kpiValue"
-                          [ngModelOptions]="{ standalone: true }"
-                          min="0" step="0.01" />
-                        <input *ngIf="column === 'section'"
-                          type="text" class="form-control form-control-sm"
-                          [(ngModel)]="rowEditValues[getRowId(row)].section"
-                          [ngModelOptions]="{ standalone: true }" />
-                      </ng-container>
-                      <ng-template #readOnlyCell>
-                        {{ column === 'section' ? (getCellValue(row, column) || '-') : formatMetricValue(getCellValue(row, column)) }}
-                      </ng-template>
-                    </ng-container>
-                  </td>
-                  <td *ngIf="formValues.dropdown4 && isEditingAllowed" class="text-center align-middle">
-                    <ng-container *ngIf="!isEditingRow(row)">
-                      <button type="button" class="btn btn-sm btn-outline-primary" [disabled]="editingRowId !== null" (click)="enterRowEditMode(row)">
-                        <i class="bi bi-pencil-square me-1"></i>Edit
-                      </button>
-                    </ng-container>
-                    <ng-container *ngIf="isEditingRow(row)">
-                      <button type="button" class="btn btn-sm btn-success me-1" [disabled]="metricsLoading" (click)="saveRow(row)">
-                        <i class="bi bi-check-lg"></i>
-                      </button>
-                      <button type="button" class="btn btn-sm btn-secondary" (click)="cancelRowEditMode()">
-                        <i class="bi bi-x-lg"></i>
-                      </button>
-                    </ng-container>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </ng-container>
+          <table class="table table-hover table-bordered mb-0 data-table">
+            <thead class="table-dark">
+              <tr>
+                <th *ngFor="let column of baseColumns">{{ headerMapping[column] || column }}</th>
+                <th *ngFor="let area of areaKeys" class="text-center">{{ areaLabels[area] }}<br /><small>{{ headerMapping['kpiValue'] }}</small></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of data">
+                <td *ngFor="let column of baseColumns">{{ getCellValue(row, column) || '-' }}</td>
+                <td *ngFor="let area of areaKeys" class="text-center align-middle">
+                  <ng-container *ngIf="isEditingArea(row, area); else areaReadOnly">
+                    <input type="number" class="form-control form-control-sm mb-1" placeholder="Achievement"
+                      [(ngModel)]="areaEdit.kpiValue" [ngModelOptions]="{ standalone: true }" min="0" step="0.01" />
+                    <input type="text" class="form-control form-control-sm mb-1" placeholder="Target"
+                      [(ngModel)]="areaEdit.target" [ngModelOptions]="{ standalone: true }" />
+                    <button type="button" class="btn btn-sm btn-success me-1" [disabled]="metricsLoading" (click)="saveArea(row, area)">
+                      <i class="bi bi-check-lg"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-secondary" (click)="cancelAreaEdit()">
+                      <i class="bi bi-x-lg"></i>
+                    </button>
+                  </ng-container>
+                  <ng-template #areaReadOnly>
+                    <div>{{ formatMetricValue(getAreaValue(row, area)) }}</div>
+                    <small *ngIf="getAreaTarget(row, area)" class="text-muted d-block">Target: {{ getAreaTarget(row, area) }}</small>
+                    <button *ngIf="isEditingAllowed" type="button" class="btn btn-sm btn-outline-primary mt-1"
+                      [disabled]="editingAreaKey !== null" (click)="enterAreaEdit(row, area)">
+                      <i class="bi bi-pencil-square me-1"></i>Edit
+                    </button>
+                  </ng-template>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
         <ng-template #noKpiData>
           <div class="text-center py-5"><div class="text-muted mb-3"><i class="bi bi-table fs-1 opacity-50"></i></div><p class="text-muted mb-0">No KPI data found for the selected filters.</p></div>

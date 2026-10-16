@@ -140,6 +140,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   totals: TotalsData = {};
   loading = true;
   calculating = false;
+  showCalculateButton = false;
   error: string | null = null;
   selectedDetails: MeterDetails | null = null;
   selectedRegionTitle = '';
@@ -201,6 +202,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     // Reload the selected month, or keep the active quarter view if the user changes
     // the filter while a quarter is selected.
     this.selectedMonth = Number(month);
+    this.showCalculateButton = true;
     this.loadDashboardData(this.getActiveMonths());
   }
 
@@ -211,6 +213,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!available.find(m => m.value === this.selectedMonth)) {
       this.selectedMonth = available[0]?.value ?? this.selectedMonth;
     }
+    this.showCalculateButton = true;
     this.loadDashboardData(this.getActiveMonths());
   }
 
@@ -221,6 +224,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     this.activeQuarter = null;
     this.calculating = true;
+    this.showCalculateButton = true;
     this.error = null;
 
     const url = `${this.overallKpiApiBase}/calculate?month=${this.selectedMonth}&year=${this.selectedYear}`;
@@ -228,11 +232,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.http.post(url, {}).subscribe({
       next: () => {
         this.calculating = false;
+        this.showCalculateButton = false;
         this.loadDashboardData();
       },
       error: (err) => {
         console.error('Failed to calculate dashboard data', err);
         this.calculating = false;
+        this.showCalculateButton = false;
         this.error = 'Unable to calculate dashboard data.';
         this.cdr.detectChanges();
       },
@@ -245,6 +251,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     this.activeQuarter = quarter;
     this.calculating = true;
+    this.showCalculateButton = true;
     this.error = null;
 
     const months = this.getQuarterMonths(quarter);
@@ -254,6 +261,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.http.post(url, {}).subscribe({
       next: () => {
         this.calculating = false;
+        this.showCalculateButton = false;
         // Reload all three persisted monthly results so the dashboard can display
         // the quarter aggregate using the same area meters as monthly mode.
         this.loadDashboardData(months);
@@ -261,6 +269,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       error: (err) => {
         console.error(`Failed to calculate ${quarter} dashboard data`, err);
         this.calculating = false;
+        this.showCalculateButton = false;
         this.error = `Unable to calculate ${quarter} dashboard data.`;
         this.cdr.detectChanges();
       },

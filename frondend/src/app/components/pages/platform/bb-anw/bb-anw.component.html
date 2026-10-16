@@ -100,18 +100,6 @@
 						<option *ngFor="let engineer of dropdown3Options" [value]="engineer">{{ engineerNameMap[engineer] || engineer }}</option>
 					</select>
 				</div>
-
-				<div class="col-lg-2 col-md-4">
-					<label for="dropdown4" class="form-label">RTOM AREA:</label>
-					<select id="dropdown4" class="form-select" [(ngModel)]="formValues.dropdown4" name="dropdown4"
-						[disabled]="!formValues.dropdown3"
-						(change)="onDropdownChange('dropdown4', $any($event.target)?.value || '')">
-						<option value="">Select an option</option>
-						<option *ngFor="let area of dropdown4Options" [value]="area">
-							{{ optionMapping[area] || area }}
-						</option>
-					</select>
-				</div>
 			</div>
 		</form>
 
@@ -136,13 +124,6 @@
 				<span class="filter-label">NW EE:</span>
 				<span class="filter-value">{{ formValues.dropdown3 ? (engineerNameMap[formValues.dropdown3] || formValues.dropdown3) : 'Select an option' }}</span>
 			</div>
-			<div class="filter-chip">
-				<span class="filter-label">RTOM AREA:</span>
-				<span class="filter-value">
-					{{ formValues.dropdown4 ? (optionMapping[formValues.dropdown4] || formValues.dropdown4) : 'Select an
-					option' }}
-				</span>
-			</div>
 		</div>
 
 		<div class="card shadow-sm border-0">
@@ -152,8 +133,8 @@
 					<h5 class="mb-0">
 						<i class="bi bi-hdd-network-fill me-2"></i>
 						Saved BB & ANW KPI rows
-						<span *ngIf="showAreaMetrics" class="ms-2 small text-white-50">
-							(Showing metrics for {{ selectedAreaLabel }})
+						<span *ngIf="areaKeys.length" class="ms-2 small text-white-50">
+							({{ areaKeys.length }} areas)
 						</span>
 					</h5>
 					<small *ngIf="isEditingAllowed" class="text-white-50 fw-semibold">Auto-saves per field</small>
@@ -168,7 +149,7 @@
 								<th>Category</th>
 								<th>Target</th>
 								<th>Weightage</th>
-								<th *ngIf="showAreaMetrics">{{ selectedAreaLabel }} (Achievement %)</th>
+								<th *ngFor="let area of areaKeys">{{ areaLabel(area) }} (Achievement %)</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -179,18 +160,18 @@
 									<td>{{ row.division }}</td>
 									<td>{{ row.section }}</td>
 									<td>{{ row.kpiPercent ?? '--' }}</td>
-									<td *ngIf="showAreaMetrics" class="metric-value">
-										{{ getSelectedAvailability(row) }}
+									<td *ngFor="let area of areaKeys" class="metric-value">
+										{{ getAreaAvailability(row, area) }}
 									</td>
 								</tr>
 
-								<tr class="sub-row" *ngIf="showAreaMetrics">
+								<tr class="sub-row" *ngIf="areaKeys.length">
 									<td></td>
 									<td class="sub-label" colspan="4">Unavailable Minutes</td>
-									<td class="metric-value">
+									<td class="metric-value" *ngFor="let area of areaKeys">
 										<ng-container *ngIf="isEditingAllowed; else viewUnavailable">
 											<ng-container
-												*ngIf="isEditingCell(row, 'unavailableMinutes'); else unavailableDisplay">
+												*ngIf="isEditingCell(row, 'unavailableMinutes', area); else unavailableDisplay">
 												<div class="edit-box">
 													<input type="number" class="form-control form-control-sm"
 														[ngModelOptions]="{ standalone: true }"
@@ -212,35 +193,35 @@
 											</ng-container>
 											<ng-template #unavailableDisplay>
 												<div class="cell-view">
-													<span>{{ getMetricDisplay(row, 'unavailableMinutes') }}</span>
+													<span>{{ getMetricDisplay(row, 'unavailableMinutes', area) }}</span>
 													<button type="button" class="table-button"
-														(click)="startEdit(row, 'unavailableMinutes')">
+														(click)="startEdit(row, 'unavailableMinutes', area)">
 														Edit
 													</button>
 												</div>
 											</ng-template>
 										</ng-container>
 										<ng-template #viewUnavailable>
-											{{ getMetricDisplay(row, 'unavailableMinutes') }}
+											{{ getMetricDisplay(row, 'unavailableMinutes', area) }}
 										</ng-template>
 									</td>
 								</tr>
-								<tr class="sub-row" *ngIf="showAreaMetrics">
+								<tr class="sub-row" *ngIf="areaKeys.length">
 									<td></td>
 									<td class="sub-label" colspan="4">Total Minutes</td>
-									<td class="metric-value">
+									<td class="metric-value" *ngFor="let area of areaKeys">
 										<div class="cell-view">
-											<span>{{ getMetricDisplay(row, 'totalMinutes') }}</span>
+											<span>{{ getMetricDisplay(row, 'totalMinutes', area) }}</span>
 										</div>
 									</td>
 								</tr>
-								<tr class="sub-row" *ngIf="showAreaMetrics">
+								<tr class="sub-row" *ngIf="areaKeys.length">
 									<td></td>
 									<td class="sub-label" colspan="4">Total Nodes</td>
-									<td class="metric-value">
+									<td class="metric-value" *ngFor="let area of areaKeys">
 										<ng-container *ngIf="isEditingAllowed; else viewTotalNodes">
 											<ng-container
-												*ngIf="isEditingCell(row, 'totalNodes'); else totalNodesDisplay">
+												*ngIf="isEditingCell(row, 'totalNodes', area); else totalNodesDisplay">
 												<div class="edit-box">
 													<input type="number" class="form-control form-control-sm"
 														[ngModelOptions]="{ standalone: true }"
@@ -262,16 +243,16 @@
 											</ng-container>
 											<ng-template #totalNodesDisplay>
 												<div class="cell-view">
-													<span>{{ getMetricDisplay(row, 'totalNodes') }}</span>
+													<span>{{ getMetricDisplay(row, 'totalNodes', area) }}</span>
 													<button type="button" class="table-button"
-														(click)="startEdit(row, 'totalNodes')">
+														(click)="startEdit(row, 'totalNodes', area)">
 														Edit
 													</button>
 												</div>
 											</ng-template>
 										</ng-container>
 										<ng-template #viewTotalNodes>
-											{{ getMetricDisplay(row, 'totalNodes') }}
+											{{ getMetricDisplay(row, 'totalNodes', area) }}
 										</ng-template>
 									</td>
 								</tr>

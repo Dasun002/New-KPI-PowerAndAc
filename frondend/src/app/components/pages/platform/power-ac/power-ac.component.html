@@ -67,17 +67,9 @@
         <div class="col-6 col-md-2">
           <label for="pac-engineer" class="form-label">NW EE:</label>
           <select id="pac-engineer" class="form-select" [(ngModel)]="selectedEngineer" name="pacEngineer"
-            [disabled]="!engineers.length" (ngModelChange)="onEngineerChange()">
+            [disabled]="!engineers.length">
             <option value="">All engineers</option>
             <option *ngFor="let engineer of engineers" [ngValue]="engineer">{{ engineerLabel(engineer) }}</option>
-          </select>
-        </div>
-        <div class="col-6 col-md-2">
-          <label for="pac-area" class="form-label">RTOM AREA:</label>
-          <select id="pac-area" class="form-select" [(ngModel)]="selectedArea" name="pacArea"
-            [disabled]="!areas.length">
-            <option value="">All areas</option>
-            <option *ngFor="let area of areas" [ngValue]="area.lea">{{ areaLabel(area.lea || '') }}</option>
           </select>
         </div>
       </div>
@@ -93,10 +85,6 @@
       <div class="filter-chip">
         <span class="filter-label">NW EE:</span>
         <span class="filter-value">{{ selectedEngineer ? engineerLabel(selectedEngineer) : 'All engineers' }}</span>
-      </div>
-      <div class="filter-chip">
-        <span class="filter-label">RTOM AREA:</span>
-        <span class="filter-value">{{ selectedArea ? areaLabel(selectedArea) : 'All areas' }}</span>
       </div>
     </div>
 

@@ -99,6 +99,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   yearOptions: number[] = [];
 
   loading = false;
+  showCalculateButton = false;
   error: string | null = null;
   noDefinitions = false;
   noOverallResults = false;
@@ -193,6 +194,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
   onYearChange(year: number): void {
     // A year change can alter the allowed months, so reload the available period and page data.
     this.selectedYear = Number(year);
+    this.showCalculateButton = true;
     this.loadAvailableMonthsAndData();
   }
 
@@ -202,6 +204,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.selectedStartMonth > this.selectedEndMonth) {
       this.selectedEndMonth = this.selectedStartMonth;
     }
+    this.showCalculateButton = true;
   }
 
   onEndMonthChange(month: number): void {
@@ -210,6 +213,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.selectedEndMonth < this.selectedStartMonth) {
       this.selectedStartMonth = this.selectedEndMonth;
     }
+    this.showCalculateButton = true;
   }
 
   setActiveView(view: 'table' | 'dashboard'): void {
@@ -261,18 +265,24 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
 
   calculate(): void {
     // Calculate and persist each month in the selected range before reading aggregated analytics.
+    if (this.loading) return;
+
     this.loading = true;
+    this.showCalculateButton = true;
     this.error = null;
     this.noOverallResults = false;
 
     const url = `${environment.apiUrl}/overall-kpi-results/calculate-range?year=${this.selectedYear}&startMonth=${this.selectedStartMonth}&endMonth=${this.selectedEndMonth}`;
     this.http.post(url, {}).subscribe({
       next: () => {
+        this.loading = false;
+        this.showCalculateButton = false;
         this.loadAnalyticsResults();
       },
       error: (err: any) => {
         console.error('Failed calculating range:', err);
         this.loading = false;
+        this.showCalculateButton = false;
         this.error = 'Unable to calculate analytics data.';
         this.cdr.detectChanges();
       }

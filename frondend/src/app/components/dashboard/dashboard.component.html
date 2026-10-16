@@ -50,8 +50,8 @@
       </div>
 
       <div class="header-actions">
-        <!-- Calculate persists the selected month and explicitly exits quarter mode. -->
-        <button class="calculate-btn" type="button" (click)="calculate()" [disabled]="loading || calculating">
+        <!-- Show the button only after the user has selected a month/year. -->
+        <button *ngIf="showCalculateButton && !loading" class="calculate-btn" type="button" (click)="calculate()" [disabled]="loading || calculating">
           {{ calculating ? 'Calculating...' : 'Calculate' }}
         </button>
       </div>

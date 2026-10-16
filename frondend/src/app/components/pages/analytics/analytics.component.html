@@ -45,7 +45,7 @@
 
     <div class="header-right">
       <span class="count-pill">{{ engineersFlat.length }} NEs</span>
-      <button class="primary-btn calculate-btn" type="button" (click)="calculate()" [disabled]="loading">
+      <button *ngIf="showCalculateButton" class="primary-btn calculate-btn" type="button" (click)="calculate()" [disabled]="loading">
         {{ loading ? 'Calculating...' : 'Calculate' }}
       </button>
       <button class="export-btn" type="button" (click)="exportToExcel()">

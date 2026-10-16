@@ -102,19 +102,6 @@
             </option>
           </select>
         </div>
-
-        <!-- RTOM AREA Dropdown -->
-        <div class="col-md-2">
-          <label for="dropdown4" class="form-label">RTOM AREA:</label>
-          <select id="dropdown4" class="form-select" [(ngModel)]="formValues.dropdown4" name="dropdown4"
-            [disabled]="!formValues.dropdown3"
-            (change)="onDropdownChange('dropdown4', $any($event.target)?.value || '')">
-            <option value="">Select an option</option>
-            <option *ngFor="let area of dropdown4Options" [value]="area">
-              {{ area }}
-            </option>
-          </select>
-        </div>
       </div>
 
     </form>
@@ -133,12 +120,6 @@
         <span class="filter-label">NW EE:</span>
         <span class="filter-value">{{ formValues.dropdown3 ? (engineerNameMap[formValues.dropdown3] || formValues.dropdown3) : 'Select an option' }}</span>
       </div>
-      <div class="filter-chip">
-        <span class="filter-label">RTOM AREA:</span>
-        <span class="filter-value">
-          {{ formValues.dropdown4 ? formValues.dropdown4 : 'Select an option' }}
-        </span>
-      </div>
     </div>
 
     <!-- Main Table -->
@@ -152,8 +133,8 @@
       <div class="card-body p-0">
         <div *ngIf="isEditingAllowed" class="edit-mode-banner">
           <i class="bi bi-pencil-square me-2"></i>
-          Inline editing enabled for {{ formValues.dropdown4 }}.
-           Click KPI Value to enter a numeric value and press Enter to save.
+          Inline editing enabled for each area.
+           Click an area's KPI Value to enter a numeric value and press Enter to save.
         </div>
         <div class="table-responsive" *ngIf="data.length > 0; else noKpiData">
           <ng-container *ngIf="getColumnsToRender() as columns">
@@ -161,7 +142,7 @@
               <thead class="table-dark">
                 <tr>
                   <th *ngFor="let column of columns">
-                    {{ headerMapping[column] || column }}
+                    {{ getColumnHeader(column) }}
                   </th>
                 </tr>
               </thead>

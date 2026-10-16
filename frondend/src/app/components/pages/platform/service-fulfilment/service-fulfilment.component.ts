@@ -7,6 +7,7 @@ import { ServiceFulfilmentKpiDto, ServiceFulfilmentKpiService, ServiceFulfilment
 import { RegionService, Region } from '../../../../services/region.service';
 import { AuthService } from '../../../../services/auth.service';
 import { FilterUtils } from '../../../../utils/filter.utils';
+import { getScopedLeas } from '../../../../utils/region-display.utils';
 
 interface KpiData {
   _id: { $oid: string } | number;
@@ -22,6 +23,8 @@ interface KpiData {
   weightage: string;
   datasources: string;
   areas?: { [key: string]: number };
+  // Area code exactly as stored on each existing metric row, keyed by normalized area key.
+  areaCodes?: { [key: string]: string };
   updatedAt?: { $date: string };
   __v?: number;
   [key: string]: any; // For dynamic area columns
@@ -52,8 +55,7 @@ export class ServiceFulfilmentComponent implements OnInit {
   formValues = {
     dropdown1: '',
     dropdown2: '',
-    dropdown3: '',
-    dropdown4: ''
+    dropdown3: ''
   };
 
   // Data
@@ -66,12 +68,11 @@ export class ServiceFulfilmentComponent implements OnInit {
   // Dropdown options
   dropdown2Options: string[] = [];
   dropdown3Options: string[] = [];
-  dropdown4Options: string[] = [];
   engineerNameMap: Record<string, string> = {};
-  
-  // Columns
+
+  // Columns: base KPI columns followed by one editable column per area code
   visibleColumns: string[] = [];
-  readonly metricColumnKey = 'kpiValue';
+  areaKeys: string[] = [];
   
   // States
   loading = true;
@@ -171,11 +172,9 @@ export class ServiceFulfilmentComponent implements OnInit {
     this.metricsLoading = true;
     this.metricsError = null;
 
-    const areaFilter = this.resolveAreaCode(this.formValues.dropdown4);
+    console.log('Service Fulfilment: Loading metrics for all areas', { month, year });
 
-    console.log('Service Fulfilment: Loading metrics', { month, year, areaFilter });
-
-    this.serviceFulfilmentKpiService.getMetrics(month, year, areaFilter || undefined).subscribe({
+    this.serviceFulfilmentKpiService.getMetrics(month, year).subscribe({
       next: (metrics) => {
         console.log('Service Fulfilment: Metrics loaded', { count: metrics?.length, metrics: metrics?.slice(0, 3) });
         this.metricsRows = Array.isArray(metrics) ? metrics : [];
@@ -227,6 +226,7 @@ export class ServiceFulfilmentComponent implements OnInit {
           engName: item.engName ?? item.EngName ?? item.engname ?? ''
         }));
         this.regionTable = mapped;
+        this.refreshColumnsFromData();
       },
       error: (err) => {
         console.error('Failed to fetch region table from API:', err);
@@ -335,16 +335,10 @@ export class ServiceFulfilmentComponent implements OnInit {
   }
 
   private rebuildKpiMatrix() {
-    if (!this.formValues.dropdown4) {
-      this.data = this.buildBaseKpiDataFromAdmin();
-      this.visibleColumns = [...this.baseColumns];
-      return;
-    }
-
     if (!this.metricsRows.length) {
       console.log('Service Fulfilment: No metrics, building base data from admin rows', { adminRows: this.adminKpiRows.length });
       this.data = this.buildBaseKpiDataFromAdmin();
-      this.visibleColumns = [...this.baseColumns, this.metricColumnKey];
+      this.refreshColumnsFromData();
       return;
     }
     console.log('Service Fulfilment: Building KPI matrix from metrics', { metricsCount: this.metricsRows.length });
@@ -571,18 +565,19 @@ export class ServiceFulfilmentComponent implements OnInit {
     if (!row.areas) {
       row.areas = {};
     }
+    if (!row.areaCodes) {
+      row.areaCodes = {};
+    }
 
     row.areas[areaKey] = metric.kpiValue;
     row[areaKey] = metric.kpiValue;
+    if (areaCode) {
+      row.areaCodes[areaKey] = areaCode;
+    }
 
     if (areaCode && areaCode !== areaKey) {
       row.areas[areaCode] = metric.kpiValue;
       row[areaCode] = metric.kpiValue;
-    }
-
-    if (this.formValues.dropdown4 && this.formValues.dropdown4 !== areaKey && this.formValues.dropdown4 !== areaCode) {
-      row.areas[this.formValues.dropdown4] = metric.kpiValue;
-      row[this.formValues.dropdown4] = metric.kpiValue;
     }
   }
 
@@ -636,9 +631,6 @@ export class ServiceFulfilmentComponent implements OnInit {
     this.formValues.dropdown2 = '';
     this.dropdown3Options = [];
     this.formValues.dropdown3 = '';
-    this.dropdown4Options = [];
-    this.formValues.dropdown4 = '';
-    this.visibleColumns = [...this.baseColumns];
   }
 
   updateDropdown3Options() {
@@ -666,91 +658,33 @@ export class ServiceFulfilmentComponent implements OnInit {
     });
 
     this.formValues.dropdown3 = '';
-    this.dropdown4Options = [];
-    this.formValues.dropdown4 = '';
-    this.visibleColumns = [...this.baseColumns];
   }
 
-  updateDropdown4Options() {
-    if (!this.formValues.dropdown3 || !this.formValues.dropdown1 || !this.formValues.dropdown2) {
-      this.dropdown4Options = [];
-      this.formValues.dropdown4 = '';
-      this.loadMetrics();
-      this.recomputeEditPermission();
-      return;
-    }
-    const leas = this.regionTable
-      .filter(x => 
-        x.region === this.formValues.dropdown1 &&
-        x.province === this.formValues.dropdown2 &&
-        x.networkEngineer === this.formValues.dropdown3
-      )
-      .map(x => this.resolveAreaCode(x.lea))
-      .filter(code => !!code);
-
-    this.dropdown4Options = Array.from(new Set(leas));
-    this.formValues.dropdown4 = '';
-    this.visibleColumns = [...this.baseColumns];
-    this.loadMetrics();
-    this.recomputeEditPermission();
-  }
-
-  updateVisibleColumns() {
-    this.refreshColumnsFromData();
-  }
-
+  // Region filters only narrow the area columns; all area metrics for the period are already loaded.
   onDropdownChange(field: string, value: string) {
-    const normalizedValue = field === 'dropdown4' ? this.resolveAreaCode(value) : value;
-    (this.formValues as any)[field] = normalizedValue;
-    
+    (this.formValues as any)[field] = value;
+
     switch (field) {
       case 'dropdown1':
         this.formValues.dropdown2 = '';
         this.formValues.dropdown3 = '';
-        this.formValues.dropdown4 = '';
         this.dropdown3Options = [];
-        this.dropdown4Options = [];
-        this.visibleColumns = [...this.baseColumns];
         this.updateDropdown2Options();
-        this.loadMetrics();
-        this.recomputeEditPermission();
         break;
       case 'dropdown2':
         this.formValues.dropdown3 = '';
-        this.formValues.dropdown4 = '';
-        this.dropdown4Options = [];
-        this.visibleColumns = [...this.baseColumns];
         this.updateDropdown3Options();
-        this.loadMetrics();
-        this.recomputeEditPermission();
-        break;
-      case 'dropdown3':
-        this.formValues.dropdown4 = '';
-        this.visibleColumns = [...this.baseColumns];
-        this.updateDropdown4Options();
-        this.recomputeEditPermission();
-        break;
-      case 'dropdown4':
-        this.updateVisibleColumns();
-        this.loadMetrics();
-        this.recomputeEditPermission();
         break;
     }
+    this.cancelEdit();
+    this.refreshColumnsFromData();
+    this.recomputeEditPermission();
   }
 
   onPeriodChange() {
     this.periodLockedByUser = true;
+    this.cancelEdit();
     this.loadMetrics();
-  }
-
-  resetAreaFilter() {
-    if (!this.formValues.dropdown4) {
-      return;
-    }
-    this.formValues.dropdown4 = '';
-    this.updateVisibleColumns();
-    this.loadMetrics();
-    this.recomputeEditPermission();
   }
 
   formatPercent(val: any): string {
@@ -769,32 +703,10 @@ export class ServiceFulfilmentComponent implements OnInit {
     return s.endsWith('%') ? s : `${s}%`;
   }
 
-  private getSelectedAreaMetricValue(item: KpiData): any {
-    const selectedAreaKey = this.resolveAreaCode(this.formValues.dropdown4);
-    if (!selectedAreaKey) {
-      return null;
-    }
-
-    const normalizedAreaKey = this.normalizeAreaKey(selectedAreaKey);
-    if (item.areas && typeof item.areas === 'object') {
-      if (item.areas[selectedAreaKey] !== undefined) return item.areas[selectedAreaKey];
-      if (item.areas[normalizedAreaKey] !== undefined) return item.areas[normalizedAreaKey];
-    }
-
-    if (item[selectedAreaKey] !== undefined && item[selectedAreaKey] !== null && item[selectedAreaKey] !== '') {
-      return item[selectedAreaKey];
-    }
-
-    if (item[normalizedAreaKey] !== undefined && item[normalizedAreaKey] !== null && item[normalizedAreaKey] !== '') {
-      return item[normalizedAreaKey];
-    }
-
-    return null;
-  }
-
   getCellValue(item: KpiData, key: string): any {
-    if (key === this.metricColumnKey) {
-      return this.getSelectedAreaMetricValue(item);
+    // Area columns only read the row's per-area values
+    if (!this.baseColumns.includes(key)) {
+      return item.areas?.[key] ?? null;
     }
 
     // First check direct property
@@ -889,20 +801,22 @@ export class ServiceFulfilmentComponent implements OnInit {
     this.activeEditValue = '';
   }
 
+  // Saves one KPI value for the area column being edited; existing rows keep their stored area code.
   saveEdit(item: KpiData, key: string) {
     if (!this.isEditingAllowed) {
       this.toastr.error('You do not have permission to update this KPI value.', 'Permission Denied');
       return;
     }
 
-    const areaCode = this.resolveAreaCode(this.formValues.dropdown4);
+    const rowId = this.getRowId(item);
+    const latestRow = this.data.find(row => this.getRowId(row) === rowId) ?? item;
+
+    const areaCode = this.areaKeys.includes(key) ? (latestRow.areaCodes?.[key] || key) : '';
     if (!areaCode) {
-      this.toastr.error('Unable to determine the selected RTOM area. Please pick an area and try again.', 'Invalid Area');
+      this.toastr.error('Unable to determine the RTOM area for this value.', 'Invalid Area');
       return;
     }
 
-    const rowId = this.getRowId(item);
-    const latestRow = this.data.find(row => this.getRowId(row) === rowId) ?? item;
     const kpiId = this.resolveKpiIdentifier(latestRow);
     if (kpiId === null) {
       this.toastr.error('Unable to resolve the KPI identifier for this row.', 'Missing KPI Id');
@@ -971,10 +885,10 @@ export class ServiceFulfilmentComponent implements OnInit {
       const dataToExport = this.data.map(item => {
         const row: any = {};
         
-        // Add all columns
+        // Add base columns and one KPI value column per area
         this.getColumnsToRender().forEach(col => {
           const value = this.getCellValue(item, col);
-          row[this.headerMapping[col] || col] = 
+          row[this.getColumnHeader(col)] =
             this.nonEditableColumns.includes(col) ? value : this.formatPercent(value);
         });
         
@@ -1040,12 +954,29 @@ export class ServiceFulfilmentComponent implements OnInit {
     return Array.from(result).sort();
   }
 
-  private refreshColumnsFromData() {
-    if (this.formValues.dropdown4) {
-      this.visibleColumns = [...this.baseColumns, this.metricColumnKey];
-      return;
+  getColumnHeader(column: string): string {
+    if (this.headerMapping[column] && this.baseColumns.includes(column)) {
+      return this.headerMapping[column];
     }
-    this.visibleColumns = [...this.baseColumns];
+    return `${column} ${this.headerMapping['kpiValue']}`;
+  }
+
+  // Area columns: LEAs in the filtered region scope, plus every stored metric area when unfiltered.
+  private refreshColumnsFromData() {
+    const { dropdown1, dropdown2, dropdown3 } = this.formValues;
+    const keys = new Set(
+      getScopedLeas(this.regionTable, { region: dropdown1, province: dropdown2, engineer: dropdown3 })
+        .map(lea => this.resolveAreaCode(lea))
+        .filter(Boolean)
+    );
+    if (!dropdown1) {
+      this.metricsRows.forEach(metric => {
+        const key = this.normalizeAreaKey(metric.area);
+        if (key !== 'UNKNOWN') keys.add(key);
+      });
+    }
+    this.areaKeys = Array.from(keys).filter(key => !this.baseColumns.includes(key)).sort();
+    this.visibleColumns = [...this.baseColumns, ...this.areaKeys];
   }
 
   getLastUpdated(item: KpiData): string {

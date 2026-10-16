@@ -82,13 +82,13 @@ namespace backend.Controllers
             if (!_configuration.GetValue<bool>("DevAuth:Enabled"))
                 return NotFound();
 
-            var serviceId = _configuration["DevAuth:ServiceId"];
+            var serviceId = _configuration["DevAuth:ServiceId"]?.Trim();
             if (string.IsNullOrWhiteSpace(serviceId))
                 return BadRequest("Development authentication ServiceId is not configured.");
 
             var user = await _context.Users
                 .Include(u => u.Role)
-                .FirstOrDefaultAsync(u => u.ServiceId == serviceId);
+                .FirstOrDefaultAsync(u => u.ServiceId.Trim() == serviceId);
 
             if (user == null)
                 return Unauthorized("Development authentication user was not found.");

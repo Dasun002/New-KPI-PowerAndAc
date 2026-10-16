@@ -35,7 +35,6 @@ export class PowerAcPlatformComponent implements OnInit {
   selectedRegion = '';
   selectedProvince = '';
   selectedEngineer = '';
-  selectedArea = '';
   loading = false;
   loadError = '';
   actionError = '';
@@ -66,14 +65,6 @@ export class PowerAcPlatformComponent implements OnInit {
       .map(row => row.networkEngineer));
   }
 
-  get areas(): RegionLookupRow[] {
-    return this.regionRows.filter(row =>
-      (!this.selectedRegion || row.region === this.selectedRegion)
-      && (!this.selectedProvince || row.province === this.selectedProvince)
-      && (!this.selectedEngineer || row.networkEngineer === this.selectedEngineer)
-      && Boolean(row.lea));
-  }
-
   get filteredRecords(): PowerAndACRecord[] {
     return this.records.filter(record => {
       if (record.month !== this.selectedMonth) return false;
@@ -81,7 +72,6 @@ export class PowerAcPlatformComponent implements OnInit {
       if (this.selectedRegion && region?.region !== this.selectedRegion) return false;
       if (this.selectedProvince && region?.province !== this.selectedProvince) return false;
       if (this.selectedEngineer && region?.networkEngineer !== this.selectedEngineer) return false;
-      if (this.selectedArea && normalizeLookupKey(region?.lea) !== normalizeLookupKey(this.selectedArea)) return false;
       return true;
     });
   }
@@ -132,16 +122,10 @@ export class PowerAcPlatformComponent implements OnInit {
   onRegionChange(): void {
     this.selectedProvince = '';
     this.selectedEngineer = '';
-    this.selectedArea = '';
   }
 
   onProvinceChange(): void {
     this.selectedEngineer = '';
-    this.selectedArea = '';
-  }
-
-  onEngineerChange(): void {
-    this.selectedArea = '';
   }
 
   toggleVerified(record: PowerAndACRecord): void {
@@ -167,11 +151,6 @@ export class PowerAcPlatformComponent implements OnInit {
   engineerLabel(engineer: string): string {
     const row = this.regionRows.find(item => item.networkEngineer === engineer);
     return formatEngineerDisplay(engineer, row?.engName);
-  }
-
-  areaLabel(area: string): string {
-    const row = this.regionRows.find(item => normalizeLookupKey(item.lea) === normalizeLookupKey(area));
-    return row?.lea ? `NW/${row.lea}` : area;
   }
 
   async exportToExcel(): Promise<void> {
