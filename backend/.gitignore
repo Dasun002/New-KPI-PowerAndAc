@@ -1,0 +1,97 @@
+####################################################
+# =============== .NET / ASP.NET CORE ==============
+####################################################
+
+# Build results
+bin/
+obj/
+out/
+
+# Rider / VS Code / Visual Studio
+.vs/
+.vscode/
+.idea/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+####################################################
+# =============== ASP.NET CORE =====================
+####################################################
+
+# Local configuration files (DO NOT COMMIT)
+appsettings.json
+appsettings.Development.json
+appsettings.Production.json
+secrets.json
+
+# IIS / Kestrel logs
+logs/
+*.log
+
+# Publish output
+publish/
+wwwroot/lib/
+wwwroot/dist/
+
+####################################################
+# =============== DATABASE =========================
+####################################################
+
+# SQL Server files
+*.mdf
+*.ldf
+*.bak
+
+####################################################
+# =============== HTTP TEST FILE ===================
+####################################################
+
+# Keep backend.http if you want, otherwise ignore
+# backend.http
+
+####################################################
+# =============== OS FILES =========================
+####################################################
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Mac
+.DS_Store
+
+####################################################
+# =============== NUGET ============================
+####################################################
+
+# NuGet packages (usually restored automatically)
+*.nupkg
+packages/
+
+####################################################
+# =============== ENV FILES ========================
+####################################################
+
+.env
+.env.*
+####################################################
+# =============== SONARQUBE ========================
+####################################################
+
+# SonarQube analysis cache and reports
+.sonarqube/
+.sonar/
+sonarqube-analysis.xml
+
+info.md
+
+.cora/*
+.cora*
+.cora/
+
+YB-Notes/
+YB-Notes/*

@@ -1,0 +1,76 @@
+<!-- Renders service fulfilment KPI records and their period-aware form fields. -->
+<div class="page-container">
+  <div class="page-header">
+    <h1>{{ pageTitle }}</h1>
+  </div>
+
+  <div class="dashboard-container">
+    <div class="form-container">
+      <div class="form-header">
+        <h2>Service Fulfilment KPI Configuration</h2>
+        <p>Add or edit service fulfilment KPIs with details</p>
+      </div>
+
+      <form [formGroup]="kpiForm" (ngSubmit)="onSubmit()" class="kpi-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="kpi">KPI *</label>
+            <input type="text" id="kpi" formControlName="kpi" placeholder="Enter KPI name" />
+            <div class="error-message" *ngIf="kpiForm.get('kpi')?.invalid && kpiForm.get('kpi')?.touched">KPI is required</div>
+          </div>
+
+          <div class="form-group">
+            <label for="calculation">Category *</label>
+            <input type="text" id="calculation" formControlName="calculation" placeholder="Enter Category" />
+          </div>
+
+          <div class="form-group">
+            <label for="target">Target *</label>
+            <input type="text" id="target" formControlName="target" placeholder="e.g. 95%" />
+          </div>
+
+          <div class="form-group">
+            <label for="weightage">Weightage *</label>
+            <input type="number" id="weightage" formControlName="weightage" placeholder="e.g. 20" />
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" *ngIf="isEditing" (click)="resetForm()">Reset</button>
+          <button type="button" class="btn-close-form" *ngIf="isEditing" (click)="closeForm()">Close</button>
+          <button type="submit" class="btn-submit" [disabled]="kpiForm.invalid">
+            {{ isEditing ? 'Update KPI' : 'Save KPI' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="table-responsive">
+      <table class="kpi-table">
+        <thead>
+          <tr>
+            <th>NO</th>
+            <th>KPI</th>
+            <th>Category</th>
+            <th>Target</th>
+            <th>Weightage</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let kpi of kpiList; let i = index">
+            <td>{{ i + 1 }}</td>
+            <td>{{ kpi.kpi }}</td>
+            <td>{{ kpi.calculation }}</td>
+            <td>{{ kpi.target }}</td>
+            <td>{{ kpi.weightage }}%</td>
+            <td class="action-buttons">
+              <button class="btn-edit" (click)="editKpi(i)">Edit</button>
+              <button class="btn-delete" (click)="deleteKpi(i)">Delete</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

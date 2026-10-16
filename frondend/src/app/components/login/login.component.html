@@ -1,0 +1,73 @@
+<!--
+  File: login.component.html
+  Description: User login page template
+  Supports both Azure SSO and local service ID login
+-->
+
+<div class="login-container">
+    <div class="login-card">
+        <div class="logo-header">
+            <img src="assets/slt-logo.svg" alt="SLT Mobitel" class="logo">
+            <div class="title-group">
+                <span class="title-main">Network KPI</span>
+                <span class="title-sub">Monitoring</span>
+            </div>
+        </div>
+
+        <!-- Azure Auth Success Message -->
+        <div *ngIf="isAzureAuthenticated" class="azure-success-banner">
+            <div class="banner-content">
+                <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <div class="banner-text">
+                    <span class="auth-msg">Step 1: Microsoft authentication complete</span>
+                    <span class="auth-email">{{ azureEmail }}</span>
+                </div>
+            </div>
+            <button class="cancel-link" (click)="cancelAzure()" title="Sign out from Microsoft">logout</button>
+        </div>
+
+        <!-- Step 2: Service ID Input (Only shown if Azure Auth is successful) -->
+        <ng-container *ngIf="isAzureAuthenticated">
+            <div class="form-group mb-4">
+                <label for="serviceId" class="form-label">Step 2: Enter Your Service ID</label>
+                <input type="text" id="serviceId" [(ngModel)]="serviceId" name="serviceId" class="form-control"
+                    placeholder="Enter your Service ID" required>
+            </div>
+
+            <div *ngIf="error" class="error-message">
+                {{ error }}
+            </div>
+
+            <button class="login-btn" (click)="login()" [disabled]="loading || !serviceId">
+                {{ loading ? 'Verifying...' : 'Login' }}
+            </button>
+        </ng-container>
+
+        <!-- Step 1: Azure Button (Only shown initially) -->
+        <ng-container *ngIf="!isAzureAuthenticated">
+            <div *ngIf="error" class="error-message">
+                {{ error }}
+            </div>
+
+            <button class="azure-btn" (click)="signInWithAzure()" [disabled]="loading">
+                <svg class="ms-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23 23">
+                    <path fill="#f35325" d="M1 1h10v10H1z" />
+                    <path fill="#81bc06" d="M12 1h10v10H12z" />
+                    <path fill="#05a6f0" d="M1 12h10v10H1z" />
+                    <path fill="#ffba08" d="M12 12h10v10H12z" />
+                </svg>
+                {{ loading ? 'Connecting...' : 'Sign in with Microsoft' }}
+            </button>
+        </ng-container>
+
+        <!-- DEV ONLY: bypass button, hidden in production builds -->
+        <ng-container *ngIf="!isAzureAuthenticated && isDevMode">
+            <div class="separator">dev only</div>
+            <button class="login-btn" (click)="devSignIn()">
+                Dev Bypass Login
+            </button>
+        </ng-container>
+    </div>
+</div>

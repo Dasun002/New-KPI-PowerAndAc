@@ -1,0 +1,245 @@
+//@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap');
+
+:host {
+  display: block;
+  min-height: 100vh;
+  position: relative;
+  font-family: Arial, sans-serif;
+  color: #102136;
+  background-image: url('/NW_KPI_Monitoring/assets/admin/SLT-Mobitel.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+:host::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+
+  /* light glass overlay on image */
+  background: rgba(248, 250, 252, 0.55);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  z-index: 0;
+}
+
+/* =========================
+   KPI PAGE (LIGHT / GLASS)
+   ========================= */
+.kpi-page {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  padding: 3rem 1.5rem 4rem;
+  overflow: hidden;
+
+  /* light gradient only (NO black) */
+  background: linear-gradient(
+    135deg,
+    rgba(240, 247, 255, 0.55),
+    rgba(198, 224, 255, 0.35)
+  );
+
+  border: 1px solid rgba(16, 33, 54, 0.06);
+}
+
+.kpi-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+
+  background:
+    url('/assets/admin/network-grid.svg') center/600px repeat,
+    linear-gradient(135deg, rgba(16, 33, 54, 0.08), rgba(0, 122, 211, 0.10));
+  opacity: 0.75;
+}
+
+/* =========================
+   HERO
+   ========================= */
+.kpi-hero {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  max-width: 720px;
+  margin: 0 auto 2.5rem;
+}
+
+.kpi-hero h1 {
+  color: #0057A6;
+  font-size: 2rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  font-family: Arial, sans-serif;
+  letter-spacing: 0.3px;
+}
+
+.kpi-hero .page-subtitle {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #0f1b2c;
+}
+
+.meta-line {
+  margin-top: 10px;
+  color: rgba(16, 33, 54, 0.85);
+}
+
+.meta-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(16, 33, 54, 0.10);
+}
+
+.meta-badge.editing {
+  background: rgba(255, 214, 153, 0.7);
+  border-color: rgba(255, 170, 60, 0.35);
+}
+
+/* =========================
+   SECTIONS
+   ========================= */
+.form-section{
+  position:relative;
+  z-index:1;
+  margin-bottom:3rem;
+}
+
+.dashboard-container{
+  width:100%;
+  max-width:1400px;
+  margin:0 auto;
+}
+
+.table-section{
+  position:relative;
+  z-index:1;
+}
+
+/* =========================
+   FORM CARD
+   ========================= */
+.kpi-form{
+  display:flex;
+  flex-direction:column;
+  gap:1.5rem;
+}
+
+
+
+/* old .field-group styles removed — using .form-group instead */
+
+/* Service Fulfilment-like form container and layout */
+.form-container{
+  width:100%;
+  max-width:1400px;
+  margin:0 auto 3rem;
+  background:#ffffff;
+  border-radius:20px;
+  padding:2.5rem;
+  box-shadow:0 10px 40px rgba(0,0,0,.05);
+  border:1px solid #eef2f6;
+}
+
+.form-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:1.5rem;
+}
+
+.form-header h2{ margin:0; color:#102136; font-size:1.5rem; font-weight:700; }
+.form-header p{ color:#94a3b8; margin:.25rem 0 0; }
+
+.form-row{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:1.25rem;
+}
+
+.form-group{ display:flex; flex-direction:column; }
+.form-group label{ font-size:.9rem; margin-bottom:.45rem; color:#334155; font-weight:600; }
+.form-group input{ padding:.85rem 1rem; border:1.5px solid #e2e8f0; border-radius:12px; background:#f8fafc; transition:all .15s ease; }
+.form-group input:focus{ outline:none; border-color:#0057a6; box-shadow:0 0 0 1px #0057a6; background:#fff; }
+
+.btn-submit{ background:linear-gradient(135deg,#0057a6,#0078d4); color:#fff; border:none; padding:.8rem 2.2rem; border-radius:10px; font-weight:700; cursor:pointer; box-shadow:0 6px 18px rgba(0,87,166,.15); }
+.btn-submit[disabled]{ opacity:.7; cursor:not-allowed; box-shadow:none; }
+.btn-cancel{ padding:.8rem 1.8rem; border-radius:10px; font-weight:600; cursor:pointer; border:1px solid #e2e8f0; background:white; color:#64748b; }
+
+/* Table wrapper receives card visuals in this layout */
+.table-responsive{ width:100%; overflow-x:auto; border-radius:18px; box-shadow:0 18px 35px rgba(8,50,94,.12); }
+
+.form-actions{ display:flex; gap:12px; align-items:center; }
+
+.action-buttons{ display:flex; gap:.5rem; }
+.btn-edit{ background:#28a745; color:#fff; border:none; padding:.4rem .8rem; border-radius:6px; font-weight:600; cursor:pointer; }
+.btn-delete{ background:#dc3545; color:#fff; border:none; padding:.4rem .8rem; border-radius:6px; font-weight:600; cursor:pointer; }
+
+
+/* old .actions block removed — using .btn-* classes instead */
+
+/* =========================
+   STATES
+   ========================= */
+.state {
+  text-align: center;
+  font-size: 1rem;
+  padding: 1rem;
+  color: #0a48a4;
+}
+
+.state.error {
+  color: #c62828;
+}
+
+/* =========================
+   TABLE
+   ========================= */
+.kpi-table{
+    width:100%;
+    border-collapse:collapse;
+    background:white;
+}
+
+.kpi-table thead{ background:#0057A6; }
+
+.kpi-table th{
+    color:white;
+    padding:1rem;
+    text-align:left;
+    font-size:.9rem;
+    border-right:1px solid rgba(255,255,255,.85);
+}
+
+.kpi-table th:last-child{ border-right:none; }
+
+.kpi-table td{ padding:1rem; border-bottom:1px solid #eee; }
+
+.kpi-table tbody tr:hover{ background:rgba(15,102,195,.05); }
+
+.kpi-table button[disabled]{ opacity:.6; cursor:not-allowed; }
+
+@media (max-width: 768px) {
+  .kpi-page {
+    padding: 2rem 1rem 3rem;
+  }
+
+  /* removed .kpi-form padding — card is .form-container */
+  /* table-section padding removed — card visuals are on .table-responsive */
+
+  .kpi-table {
+    display: block;
+    overflow-x: auto;
+  }
+  .form-row{ grid-template-columns: 1fr; }
+  /* fonts are loaded globally; do not declare @font-face inside media queries */
+
+}

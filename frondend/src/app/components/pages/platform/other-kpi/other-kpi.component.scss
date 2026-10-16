@@ -1,0 +1,41 @@
+@use '../service-fulfilment/service-fulfilment.component.scss' as *;
+@import '../shared-page-styles.scss';
+
+.pac-year-select {
+  width: auto;
+  min-width: 110px;
+  padding: 6px 32px 6px 12px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  background-color: #ffffff;
+  color: #0057a6;
+  font-weight: 700;
+  font-size: 14.5px;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230057a6' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover {
+    border-color: #ffffff;
+    background-color: #f0f7ff;
+    transform: translateY(-1.5px) scale(1.03);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  }
+
+  &:focus {
+    border-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.35);
+  }
+
+  option {
+    color: #1e293b;
+    background-color: #ffffff;
+  }
+}

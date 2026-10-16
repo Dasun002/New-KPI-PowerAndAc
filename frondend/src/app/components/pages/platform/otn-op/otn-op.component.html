@@ -1,0 +1,360 @@
+<div class="page-container">
+	<div class="page-header d-flex flex-wrap align-items-start justify-content-between gap-3">
+		<div>
+			<h1>{{ pageTitle }}</h1>
+			<p class="page-subtitle">Fiber failures restoration & OTN network availability</p>
+
+			<div class="mt-3 d-flex flex-wrap align-items-center gap-2">
+				<small class="text-muted">
+					<i class="bi bi-info-circle me-1"></i>
+					{{ otnOp1Data.length + otnOp2Data.length }} KPIs loaded •
+					<span [class.text-success]="isEditingAllowed" [class.text-warning]="!isEditingAllowed">
+						<i class="bi" [ngClass]="isEditingAllowed ? 'bi-check-circle' : 'bi-exclamation-circle'"></i>
+						{{ isEditingAllowed ? 'Edit mode enabled' : 'View only mode' }}
+					</span>
+				</small>
+			</div>
+		</div>
+		<div class="header-actions d-flex flex-wrap align-items-center gap-2">
+			<button type="button" class="export-btn" (click)="exportToExcel()"
+				[disabled]="loading || !combinedData.length">
+				Export to Excel
+			</button>
+		</div>
+	</div>
+
+	<div class="toast-host">
+		<div class="toast-msg" *ngFor="let toast of toasts" [class.toast-success]="toast.type === 'success'"
+			[class.toast-danger]="toast.type === 'danger'" (click)="dismissToast(toast.id)" role="alert"
+			aria-live="polite">
+			<span class="me-2">
+				<i class="bi" [ngClass]="toast.type === 'success' ? 'bi-check-circle' : 'bi-x-circle'"></i>
+			</span>
+			<span>{{ toast.text }}</span>
+			<span class="ms-auto opacity-75">✕</span>
+		</div>
+	</div>
+
+	<div *ngIf="loading" class="loader text-center py-5">
+		<div class="spinner-border text-primary" role="status">
+			<span class="visually-hidden">Loading...</span>
+		</div>
+		<p class="text-muted mt-3">Loading OTN KPI data...</p>
+	</div>
+
+	<div *ngIf="error" class="error-message alert alert-danger text-center">
+		{{ error }}
+		<button type="button" class="btn btn-outline-danger btn-sm ms-3" (click)="loadData()">Retry</button>
+	</div>
+
+	<div *ngIf="!loading && !error">
+		<form (submit)="$event.preventDefault()" class="filters-form mb-4">
+			<div class="row g-3">
+				<!-- Month Dropdown -->
+				<div class="col-md-2">
+					<label for="monthSelect" class="form-label">Month:</label>
+					<select id="monthSelect" class="form-select" [(ngModel)]="selectedMonth" name="monthSelect"
+						(change)="onPeriodChange()">
+						<option *ngFor="let month of monthOptions" [value]="month.value">
+							{{ month.label }}
+						</option>
+					</select>
+				</div>
+
+				<!-- Year Dropdown -->
+				<div class="col-md-2">
+					<label for="yearSelect" class="form-label">Year:</label>
+					<select id="yearSelect" class="form-select" [(ngModel)]="selectedYear" name="yearSelect"
+						(change)="onPeriodChange()">
+						<option *ngFor="let year of yearOptions" [value]="year">
+							{{ year }}
+						</option>
+					</select>
+				</div>
+
+				<!-- R-GM Dropdown -->
+				<div class="col-md-2">
+					<label for="dropdown1" class="form-label">R-GM:</label>
+					<select id="dropdown1" class="form-select" [(ngModel)]="formValues.dropdown1" name="dropdown1"
+						(change)="onDropdownChange('dropdown1', $any($event.target)?.value || '')">
+						<option value="">Select an option</option>
+						<option *ngFor="let region of regions" [value]="region">{{ region }}</option>
+					</select>
+				</div>
+
+				<!-- P-DGM Dropdown -->
+				<div class="col-md-2">
+					<label for="dropdown2" class="form-label">P-DGM:</label>
+					<select id="dropdown2" class="form-select" [(ngModel)]="formValues.dropdown2" name="dropdown2"
+						[disabled]="!formValues.dropdown1"
+						(change)="onDropdownChange('dropdown2', $any($event.target)?.value || '')">
+						<option value="">Select an option</option>
+						<option *ngFor="let province of dropdown2Options" [value]="province">{{ province }}</option>
+					</select>
+				</div>
+
+				<!-- NW EE Dropdown -->
+				<div class="col-md-2">
+					<label for="dropdown3" class="form-label">NW EE:</label>
+					<select id="dropdown3" class="form-select" [(ngModel)]="formValues.dropdown3" name="dropdown3"
+						[disabled]="!formValues.dropdown2"
+						(change)="onDropdownChange('dropdown3', $any($event.target)?.value || '')">
+						<option value="">Select an option</option>
+						<option *ngFor="let engineer of dropdown3Options" [value]="engineer">{{ engineerNameMap[engineer] || engineer }}</option>
+					</select>
+				</div>
+
+				<!-- RTOM AREA Dropdown -->
+				<div class="col-md-2">
+					<label for="dropdown4" class="form-label">RTOM AREA:</label>
+					<select id="dropdown4" class="form-select" [(ngModel)]="formValues.dropdown4" name="dropdown4"
+						[disabled]="!formValues.dropdown3"
+						(change)="onDropdownChange('dropdown4', $any($event.target)?.value || '')">
+						<option value="">Select an option</option>
+						<option *ngFor="let area of dropdown4Options" [value]="area">
+							{{ optionMapping[area] || area }}
+						</option>
+					</select>
+				</div>
+			</div>
+		</form>
+		<div class="selected-filters mb-4">
+			<div class="filter-chip">
+				<span class="filter-label">R-GM:</span>
+				<span class="filter-value">{{ formValues.dropdown1 || 'Select an option' }}</span>
+			</div>
+			<div class="filter-chip">
+				<span class="filter-label">P-DGM:</span>
+				<span class="filter-value">{{ formValues.dropdown2 || 'Select an option' }}</span>
+			</div>
+			<div class="filter-chip">
+				<span class="filter-label">NW EE:</span>
+				<span class="filter-value">{{ formValues.dropdown3 ? (engineerNameMap[formValues.dropdown3] || formValues.dropdown3) : 'Select an option' }}</span>
+			</div>
+			<div class="filter-chip">
+				<span class="filter-label">RTOM AREA:</span>
+				<span class="filter-value">
+					{{ formValues.dropdown4 ? selectedLeaLabel : 'Select an option' }}
+				</span>
+			</div>
+		</div>
+		<div class="card shadow-sm border-0">
+			<div class="card-body p-0">
+				<div class="card-header bg-primary text-white d-flex flex-wrap align-items-center gap-3">
+					<h5 class="mb-0 d-flex align-items-center gap-2">
+						<i class="bi bi-bezier2"></i>
+						INT & NT OP KPI (OtnOp1 & OtnOp2)
+					</h5>
+					<div class="ms-auto" *ngIf="canEditMetrics">
+						<small class="text-white-50 fw-semibold">
+							Inline edits auto-save for {{ selectedLeaLabel || 'selected area' }}
+						</small>
+					</div>
+				</div>
+
+				<div class="table-responsive" *ngIf="!loading && combinedData.length">
+					<table class="table table-hover table-bordered mb-0 data-table"
+						(keydown.space)="$event.stopPropagation()">
+						<thead class="table-dark">
+							<tr>
+								<th>No.</th>
+								<th>Network Engineer KPI</th>
+								<th>Category</th>
+								<th>Target</th>
+								<th>Weightage</th>
+								<th *ngIf="selectedKey">{{ selectedLeaLabel || 'RTOM Area' }} (Achievement %)</th>
+							</tr>
+						</thead>
+						<tbody>
+							<ng-container *ngFor="let row of combinedData; let i = index">
+								<tr>
+									<td>{{ i + 1 }}</td>
+									<td>{{ row.networkEngineerKpi }}</td>
+									<td>{{ row.division }}</td>
+									<td>{{ row.section }}</td>
+									<td>{{ row.kpiPercent }}</td>
+									<td *ngIf="selectedKey">{{ selectedPercentage(row) || '—' }}</td>
+								</tr>
+								<ng-container *ngIf="row.formType === 'OtnOp1' && selectedKey">
+									<tr class="sub-row">
+										<td></td>
+										<td class="sub-label" colspan="4">Total Minutes</td>
+										<td class="metric-cell" [class.can-edit]="canEditMetrics">
+											<ng-container
+												*ngIf="isEditing(row.id, 'totalMinutes'); else totalMinutesView">
+												<div class="edit-box">
+													<input type="number" class="form-control form-control-sm"
+														[ngModel]="editCell.value" (ngModelChange)="onEditInput($event)"
+														(keydown)="handleEditKey($event)" placeholder="Enter minutes" />
+													<div class="edit-actions">
+														<button type="button" class="table-button"
+															(click)="doneEdit()">Save</button>
+														<button type="button" class="table-button btn-outline-warning"
+															(click)="cancelEdit()">
+															Cancel
+														</button>
+													</div>
+												</div>
+											</ng-container>
+											<ng-template #totalMinutesView>
+												<div class="cell-view">
+													<span>{{ formatSnapshotValue(getTotalMinutesDisplay(row)) }}</span>
+													<button *ngIf="canEditMetrics" type="button"
+														class="table-button btn-outline-warning"
+														(click)="startEdit(row, 'totalMinutes')">
+														Edit
+													</button>
+												</div>
+											</ng-template>
+										</td>
+									</tr>
+									<tr class="sub-row">
+										<td></td>
+										<td class="sub-label" colspan="4">Unavailable Minutes</td>
+										<td class="metric-cell" [class.can-edit]="canEditMetrics">
+											<ng-container
+												*ngIf="isEditing(row.id, 'unavailableMinutes'); else unavailableMinutesView">
+												<div class="edit-box">
+													<input type="number" class="form-control form-control-sm"
+														[ngModel]="editCell.value" (ngModelChange)="onEditInput($event)"
+														(keydown)="handleEditKey($event)" placeholder="Enter minutes" />
+													<div class="edit-actions">
+														<button type="button" class="table-button"
+															(click)="doneEdit()">Save</button>
+														<button type="button" class="table-button btn-outline-warning"
+															(click)="cancelEdit()">
+															Cancel
+														</button>
+													</div>
+												</div>
+											</ng-container>
+											<ng-template #unavailableMinutesView>
+												<div class="cell-view">
+													<span>{{ formatSnapshotValue(getOtnOp1Value(row,
+														'unavailableMinutes')) }}</span>
+													<button *ngIf="canEditMetrics" type="button"
+														class="table-button btn-outline-warning"
+														(click)="startEdit(row, 'unavailableMinutes')">
+														Edit
+													</button>
+												</div>
+											</ng-template>
+										</td>
+									</tr>
+									<tr class="sub-row">
+										<td></td>
+										<td class="sub-label" colspan="4">Total Nodes</td>
+										<td class="metric-cell" [class.can-edit]="canEditMetrics">
+											<ng-container *ngIf="isEditing(row.id, 'totalNodes'); else totalNodesView">
+												<div class="edit-box">
+													<input type="number" class="form-control form-control-sm"
+														[ngModel]="editCell.value" (ngModelChange)="onEditInput($event)"
+														(keydown)="handleEditKey($event)" placeholder="Enter nodes" />
+													<div class="edit-actions">
+														<button type="button" class="table-button"
+															(click)="doneEdit()">Save</button>
+														<button type="button" class="table-button btn-outline-warning"
+															(click)="cancelEdit()">
+															Cancel
+														</button>
+													</div>
+												</div>
+											</ng-container>
+											<ng-template #totalNodesView>
+												<div class="cell-view">
+													<span>{{ formatSnapshotValue(getOtnOp1Value(row, 'totalNodes'))
+														}}</span>
+													<button *ngIf="canEditMetrics" type="button"
+														class="table-button btn-outline-warning"
+														(click)="startEdit(row, 'totalNodes')">
+														Edit
+													</button>
+												</div>
+											</ng-template>
+										</td>
+									</tr>
+								</ng-container>
+								<ng-container *ngIf="row.formType === 'OtnOp2' && selectedKey">
+									<tr class="sub-row">
+										<td></td>
+										<td class="sub-label" colspan="4">Total Failed Links</td>
+										<td class="metric-cell" [class.can-edit]="canEditMetrics">
+											<ng-container
+												*ngIf="isEditing(row.id, 'totalFailedLinks'); else totalFailedLinksView">
+												<div class="edit-box">
+													<input type="number" class="form-control form-control-sm"
+														[ngModel]="editCell.value" (ngModelChange)="onEditInput($event)"
+														(keydown)="handleEditKey($event)" placeholder="Enter count" />
+													<div class="edit-actions">
+														<button type="button" class="table-button"
+															(click)="doneEdit()">Save</button>
+														<button type="button" class="table-button btn-outline-warning"
+															(click)="cancelEdit()">
+															Cancel
+														</button>
+													</div>
+												</div>
+											</ng-container>
+											<ng-template #totalFailedLinksView>
+												<div class="cell-view">
+													<span>{{ formatSnapshotValue(getOtnOp2Value(row,
+														'totalFailedLinks')) }}</span>
+													<button *ngIf="canEditMetrics" type="button"
+														class="table-button btn-outline-warning"
+														(click)="startEdit(row, 'totalFailedLinks')">
+														Edit
+													</button>
+												</div>
+											</ng-template>
+										</td>
+									</tr>
+									<tr class="sub-row">
+										<td></td>
+										<td class="sub-label" colspan="4">Links SLA Not Violated</td>
+										<td class="metric-cell" [class.can-edit]="canEditMetrics">
+											<ng-container
+												*ngIf="isEditing(row.id, 'linksSlaNotViolated'); else linksSlaView">
+												<div class="edit-box">
+													<input type="number" class="form-control form-control-sm"
+														[ngModel]="editCell.value" (ngModelChange)="onEditInput($event)"
+														(keydown)="handleEditKey($event)" placeholder="Enter count" />
+													<div class="edit-actions">
+														<button type="button" class="table-button"
+															(click)="doneEdit()">Save</button>
+														<button type="button" class="table-button btn-outline-warning"
+															(click)="cancelEdit()">
+															Cancel
+														</button>
+													</div>
+												</div>
+											</ng-container>
+											<ng-template #linksSlaView>
+												<div class="cell-view">
+													<span>{{ formatSnapshotValue(getOtnOp2Value(row,
+														'linksSlaNotViolated')) }}</span>
+													<button *ngIf="canEditMetrics" type="button"
+														class="table-button btn-outline-warning"
+														(click)="startEdit(row, 'linksSlaNotViolated')">
+														Edit
+													</button>
+												</div>
+											</ng-template>
+										</td>
+									</tr>
+								</ng-container>
+
+
+							</ng-container>
+						</tbody>
+					</table>
+				</div>
+
+				<div *ngIf="!loading && !combinedData.length" class="text-center py-5 text-muted">
+					<i class="bi bi-folder2-open d-block mb-2"></i>
+					<span>No KPI entries yet.</span>
+				</div>
+			</div>
+		</div>
+
+	</div>
+</div>

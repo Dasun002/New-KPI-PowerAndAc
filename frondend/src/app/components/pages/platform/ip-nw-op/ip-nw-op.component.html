@@ -1,0 +1,320 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-info">
+      <h1>{{ pageTitle }}</h1>
+      <p class="page-subtitle">IP Network Operations metrics and performance</p>
+
+      <div class="mt-3">
+        <small class="text-muted">
+          <i class="bi bi-info-circle me-1"></i>
+          {{ data.length }} KPIs loaded •
+          <span [class.text-success]="isEditingAllowed" [class.text-warning]="!isEditingAllowed">
+            <i class="bi" [ngClass]="isEditingAllowed ? 'bi-check-circle' : 'bi-exclamation-circle'"></i>
+            {{ isEditingAllowed ? 'Edit mode enabled' : 'View only mode' }}
+          </span>
+        </small>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button type="button" class="export-btn" (click)="exportToExcel()" [disabled]="loading || !data.length">
+        Export to Excel
+      </button>
+    </div>
+  </div>
+
+  <!-- Toasts (simple, built-in) -->
+  <div class="toast-host">
+    <div class="toast-msg" *ngFor="let t of toasts" [class.toast-success]="t.type === 'success'"
+      [class.toast-danger]="t.type === 'danger'" (click)="dismissToast(t.id)" role="alert" aria-live="polite">
+      <span class="me-2">
+        <i class="bi" [ngClass]="t.type === 'success' ? 'bi-check-circle' : 'bi-x-circle'"></i>
+      </span>
+      <span>{{ t.text }}</span>
+      <span class="ms-auto opacity-75">✕</span>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="loader text-center py-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="text-muted mt-3">Loading IP NW OP data...</p>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="error" class="error-message alert alert-danger text-center">
+    {{ error }}
+    <button type="button" class="btn btn-outline-danger btn-sm ms-3" (click)="loadData()">
+      Retry
+    </button>
+  </div>
+
+  <!-- Main -->
+  <div *ngIf="!loading && !error">
+    <!-- Month/Year Selection & Filters Combined -->
+    <form (submit)="$event.preventDefault()" class="filters-form mb-4">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label for="monthSelect" class="form-label">Month:</label>
+          <select id="monthSelect" class="form-select" [(ngModel)]="selectedMonth" (change)="onMonthYearChange()"
+            name="month">
+            <option *ngFor="let m of monthOptions" [value]="m.value">
+              {{ m.label }}
+            </option>
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label for="yearSelect" class="form-label">Year:</label>
+          <select id="yearSelect" class="form-select" [(ngModel)]="selectedYear" (change)="onMonthYearChange()"
+            name="year">
+            <option *ngFor="let y of yearOptions" [value]="y">{{ y }}</option>
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label for="dropdown1" class="form-label">R-GM:</label>
+          <select id="dropdown1" class="form-select" [(ngModel)]="formValues.dropdown1" name="dropdown1"
+            (change)="onDropdownChange('dropdown1', $any($event.target)?.value || '')">
+            <option value="">Select an option</option>
+            <option *ngFor="let r of regions" [value]="r">{{ r }}</option>
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label for="dropdown2" class="form-label">P-DGM:</label>
+          <select id="dropdown2" class="form-select" [(ngModel)]="formValues.dropdown2" name="dropdown2"
+            [disabled]="!formValues.dropdown1"
+            (change)="onDropdownChange('dropdown2', $any($event.target)?.value || '')">
+            <option value="">Select an option</option>
+            <option *ngFor="let p of dropdown2Options" [value]="p">{{ p }}</option>
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label for="dropdown3" class="form-label">NW EE:</label>
+          <select id="dropdown3" class="form-select" [(ngModel)]="formValues.dropdown3" name="dropdown3"
+            [disabled]="!formValues.dropdown2"
+            (change)="onDropdownChange('dropdown3', $any($event.target)?.value || '')">
+            <option value="">Select an option</option>
+            <option *ngFor="let e of dropdown3Options" [value]="e">{{ engineerNameMap[e] || e }}</option>
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label for="dropdown4" class="form-label">RTOM AREA:</label>
+          <select id="dropdown4" class="form-select" [(ngModel)]="formValues.dropdown4" name="dropdown4"
+            [disabled]="!formValues.dropdown3"
+            (change)="onDropdownChange('dropdown4', $any($event.target)?.value || '')">
+            <option value="">Select an option</option>
+            <option *ngFor="let a of dropdown4Options" [value]="a">
+              {{ optionMapping[a] || a }}
+            </option>
+          </select>
+        </div>
+      </div>
+    </form>
+
+    <!-- Selected filters summary -->
+    <div class="selected-filters mb-4">
+      <div class="filter-chip">
+        <span class="filter-label">R-GM:</span>
+        <span class="filter-value">{{ formValues.dropdown1 || 'Select an option' }}</span>
+      </div>
+      <div class="filter-chip">
+        <span class="filter-label">P-DGM:</span>
+        <span class="filter-value">{{ formValues.dropdown2 || 'Select an option' }}</span>
+      </div>
+      <div class="filter-chip">
+        <span class="filter-label">NW EE:</span>
+        <span class="filter-value">{{ formValues.dropdown3 ? (engineerNameMap[formValues.dropdown3] || formValues.dropdown3) : 'Select an option' }}</span>
+      </div>
+      <div class="filter-chip">
+        <span class="filter-label">RTOM AREA:</span>
+        <span class="filter-value">
+          {{
+          formValues.dropdown4
+          ? (optionMapping[formValues.dropdown4] || formValues.dropdown4)
+          : 'Select an option'
+          }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <ng-container *ngIf="!hasAreaFilter; else areaView">
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+          <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+              <i class="bi bi-diagram-2-fill me-2"></i>
+              KPI (NW Availability - IP Core NW / BSR NW / Service Edge NW)
+            </h5>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover table-bordered mb-0 data-table">
+              <thead class="table-dark">
+                <tr>
+                  <th>No</th>
+                  <th>Network Engineer KPI</th>
+                  <th>Category</th>
+                  <th>Target</th>
+                  <th>Weightage</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                <tr *ngFor="let row of data; let i = index">
+                  <td>{{ i + 1 }}</td>
+                  <td>{{ row.network_engineer_kpi }}</td>
+                  <td>{{ row.division }}</td>
+                  <td>{{ row.section }}</td>
+                  <td>{{ row.kpi_percent }}</td>
+                </tr>
+
+                <tr *ngIf="data.length === 0">
+                  <td colspan="5" class="text-center py-5 text-muted">
+                    No KPI data found.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+
+    <ng-template #areaView>
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+          <div class="card-header bg-primary text-white d-flex flex-wrap align-items-center gap-3">
+            <h5 class="mb-0 d-flex flex-wrap align-items-center gap-2">
+              <i class="bi bi-diagram-2-fill me-2"></i>
+              KPI (NW Availability - IP Core NW / BSR NW / Service Edge NW)
+              <span class="badge bg-light text-primary ms-auto">
+                {{ selectedAreaLabel || 'Selected Area' }}
+              </span>
+            </h5>
+
+            <div class="ms-auto" *ngIf="canEditMetrics">
+              <small class="text-white-50 fw-semibold">
+                Inline edits auto-save for {{ selectedAreaLabel || 'selected area' }}
+              </small>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover table-bordered mb-0 data-table">
+              <thead class="table-dark">
+                <tr>
+                  <th>No</th>
+                  <th>Network Engineer KPI</th>
+                  <th>Category</th>
+                  <th>Target</th>
+                  <th>Weightage</th>
+                  <th>{{ selectedAreaLabel || 'Selected Area' }} (Achievement %)</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                <ng-container *ngIf="data.length > 0; else noAreaRows">
+                  <ng-container *ngFor="let row of data; let i = index">
+                    <tr>
+                      <td>{{ i + 1 }}</td>
+                      <td>{{ row.network_engineer_kpi }}</td>
+                      <td>{{ row.division }}</td>
+                      <td>{{ row.section }}</td>
+                      <td>{{ row.kpi_percent }}</td>
+                      <td>{{ getAreaPercentage(row) }}</td>
+                    </tr>
+                    <tr class="sub-row">
+                      <td></td>
+                      <td colspan="4" class="sub-label">Unavailable Minutes</td>
+                      <td class="metric-cell" [class.can-edit]="canEditMetrics">
+                        <ng-container *ngIf="isCellEditing(row.id, 'unavailable_minutes'); else unavailableView">
+                          <div class="edit-box">
+                            <input type="number" class="form-control form-control-sm" [ngModel]="editCell.value"
+                              (ngModelChange)="onEditInput($event)" (keydown)="handleEditKey($event)"
+                              placeholder="Enter minutes" />
+                            <div class="edit-actions">
+                              <button type="button" class="table-button" (click)="doneEdit()">
+                                Save
+                              </button>
+                              <button type="button" class="table-button btn-outline-warning" (click)="cancelEdit()">
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        </ng-container>
+                        <ng-template #unavailableView>
+                          <div class="cell-view">
+                            <span>{{ getAreaMetric(row, 'unavailable_minutes') }}</span>
+                            <button *ngIf="canEditMetrics" type="button" class="table-button btn-outline-warning"
+                              (click)="startEdit(row, 'unavailable_minutes')">
+                              Edit
+                            </button>
+                          </div>
+                        </ng-template>
+                      </td>
+                    </tr>
+                    <tr class="sub-row">
+                      <td></td>
+                      <td colspan="4" class="sub-label">Total Minutes</td>
+                      <td class="metric-cell">
+                        <div class="cell-view">
+                          <span>{{ getAreaMetric(row, 'total_minutes') }}</span>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr class="sub-row">
+                      <td></td>
+                      <td colspan="4" class="sub-label">Total Nodes</td>
+                      <td class="metric-cell" [class.can-edit]="canEditMetrics">
+                        <ng-container *ngIf="isCellEditing(row.id, 'total_nodes'); else totalNodesView">
+                          <div class="edit-box">
+                            <input type="number" class="form-control form-control-sm" [ngModel]="editCell.value"
+                              (ngModelChange)="onEditInput($event)" (keydown)="handleEditKey($event)"
+                              placeholder="Enter nodes" />
+                            <div class="edit-actions">
+                              <button type="button" class="table-button" (click)="doneEdit()">
+                                Save
+                              </button>
+                              <button type="button" class="table-button btn-outline-warning" (click)="cancelEdit()">
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        </ng-container>
+                        <ng-template #totalNodesView>
+                          <div class="cell-view">
+                            <span>{{ getAreaMetric(row, 'total_nodes') }}</span>
+                            <button *ngIf="canEditMetrics" type="button" class="table-button btn-outline-warning"
+                              (click)="startEdit(row, 'total_nodes')">
+                              Edit
+                            </button>
+                          </div>
+                        </ng-template>
+                      </td>
+                    </tr>
+
+                  </ng-container>
+                </ng-container>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </ng-template>
+
+    <ng-template #noAreaRows>
+      <tr>
+        <td colspan="6" class="text-center py-5 text-muted">
+          No KPI data found for the selected area.
+        </td>
+      </tr>
+    </ng-template>
+  </div>
+</div>

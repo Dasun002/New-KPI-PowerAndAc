@@ -1,0 +1,151 @@
+<div class="kpi-page">
+  <div class="kpi-overlay"></div>
+
+  <section class="hero-panel">
+    <div class="hero-content">
+      <h1>{{ pageTitle }}</h1>
+      <p class="hero-subtitle">{{ heroSubtitle }}</p>
+    </div>
+    <div class="hero-actions">
+      <button type="button" class="export-btn" (click)="exportToExcel()" [disabled]="loading">
+        Export to Excel
+      </button>
+    </div>
+  </section>
+
+  <section class="table-section">
+    <div class="state" *ngIf="loading">Loading routine maintenance insights...</div>
+    <ng-container *ngIf="!loading">
+      <div class="state error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+      <article class="data-card">
+        <header>
+          <div>
+            <h2><i class="bi bi-tools me-2"></i>Multi-Platform Maintenance Tables</h2>
+            <p>Routine KPI definitions aligned with current placeholder compliance snapshots.</p>
+          </div>
+
+          <!-- ✅ FILTER BAR INSIDE TABLE TITLE STRIPE -->
+          <div class="header-filters">
+            <div class="filter-group">
+              <label for="routine-month-select">Month:</label>
+              <select id="routine-month-select" class="filter-select"
+                      [(ngModel)]="selectedMonth"
+                      (ngModelChange)="onMonthChange($event)">
+                <option *ngFor="let month of monthOptions" [ngValue]="month.value">
+                  {{ month.label }}
+                </option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label for="routine-year-select">Year:</label>
+              <select id="routine-year-select" class="filter-select"
+                      [(ngModel)]="selectedYear"
+                      (ngModelChange)="onYearChange($event)">
+                <option *ngFor="let year of yearOptions" [ngValue]="year">
+                  {{ year }}
+                </option>
+              </select>
+            </div>
+          </div>
+        </header>
+
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>KPI</th>
+                <th>Target</th>
+                <th>Category</th>
+                <th>Responsible DGM</th>
+                <th *ngFor="let column of columns; trackBy: trackByColumn">{{ column }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngIf="!maintenanceRows.length">
+                <td [attr.colspan]="combinedTableColspan">No KPI definitions available.</td>
+              </tr>
+              <tr *ngFor="let row of maintenanceRows; trackBy: trackByMaintenanceRow">
+                <td>{{ formatRoutineValue(row.routine.kpi) }}</td>
+                <td>{{ formatRoutineValue(row.routine.target) }}</td>
+                <td>{{ formatRoutineValue(row.routine.calculation) }}</td>
+                <td>{{ formatRoutineValue(row.routine.responsibleDGM) }}</td>
+                <td *ngFor="let column of columns; trackBy: trackByColumn" class="achievement-cell">
+                  {{ formatPlaceholderValue(row.platformKey, column) }}
+                  <div class="approval-icon" 
+                       *ngIf="hasDetailForMainTable(row.platformKey, column)"
+                       [ngClass]="isVerifiedForMainTable(row.platformKey, column) ? 'approved' : 'unapproved'"
+                       title="Verification status">
+                    <i class="bi bi-check" *ngIf="isVerifiedForMainTable(row.platformKey, column)"></i>
+                    <i class="bi bi-x" *ngIf="!isVerifiedForMainTable(row.platformKey, column)"></i>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="data-card" *ngFor="let config of platformConfigs">
+        <header>
+          <div>
+            <h2>
+              <i class="bi me-2" [ngClass]="{
+                'bi-cpu-fill': config.key === 'msan',
+                'bi-shield-lock-fill': config.key === 'vpn',
+                'bi-diagram-3-fill': config.key === 'slbn'
+              }"></i>{{ config.title }}
+            </h2>
+            <p>Distribution vs achievement for each NW region.</p>
+          </div>
+        </header>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th rowspan="2">Month</th>
+                <th *ngFor="let column of columns; trackBy: trackByColumn" colspan="2">{{ column }}</th>
+              </tr>
+              <tr>
+                <ng-container *ngFor="let column of columns; trackBy: trackByColumn">
+                  <th>Distribution</th>
+                  <th>Achievement</th>
+                </ng-container>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td># of Nodes</td>
+                <ng-container *ngFor="let column of columns; trackBy: trackByColumn">
+                  <td colspan="2"><strong>{{ getTowerSum(config.key, column) }}</strong></td>
+                </ng-container>
+              </tr>
+              <tr *ngFor="let record of getPlatformRecords(config.key); trackBy: trackByMonth">
+                <td>{{ record.month }}</td>
+                <ng-container *ngFor="let column of columns; trackBy: trackByColumn">
+                  <td>{{ getDetailValue(record, column, 'scheduled') }}</td>
+                  <td class="achievement-cell">
+                    {{ getDetailValue(record, column, 'attended') }}
+                    <div class="approval-icon"
+                         *ngIf="getDetailId(record, column)"
+                         [ngClass]="getIsVerified(record, column) ? 'approved' : 'unapproved'"
+                         (click)="toggleVerified(config.key, record, column)"
+                         [title]="canEditMetrics ? 'Click to toggle approval' : 'Verification status'">
+                      <i class="bi bi-check" *ngIf="getIsVerified(record, column)"></i>
+                      <i class="bi bi-x" *ngIf="!getIsVerified(record, column)"></i>
+
+                    </div>
+                  </td>
+                </ng-container>
+              </tr>
+              <tr *ngIf="!getPlatformRecords(config.key).length">
+                <td [attr.colspan]="columns.length * 2 + 1">No data available.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </ng-container>
+  </section>
+</div>
+

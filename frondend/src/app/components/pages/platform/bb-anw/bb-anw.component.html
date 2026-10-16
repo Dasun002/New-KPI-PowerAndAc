@@ -1,0 +1,291 @@
+<div class="page-container">
+	<div class="page-header">
+		<div class="header-info">
+			<h1>{{ pageTitle }}</h1>
+			<p class="page-subtitle">Broadband & Access Network availability metrics</p>
+
+			<div class="mt-3">
+				<small class="text-muted">
+					<i class="bi bi-info-circle me-1"></i>
+					{{ data.length }} KPIs loaded
+					<span [class.text-success]="isEditingAllowed" [class.text-warning]="!isEditingAllowed">
+						<i class="bi" [ngClass]="isEditingAllowed ? 'bi-check-circle' : 'bi-exclamation-circle'"></i>
+						{{ isEditingAllowed ? 'Edit mode enabled' : 'View only mode' }}
+					</span>
+				</small>
+			</div>
+		</div>
+
+		<div class="header-actions">
+			<button type="button" class="export-btn" (click)="exportToExcel()" [disabled]="loading || !data.length">
+				Export to Excel
+			</button>
+		</div>
+	</div>
+
+	<div class="toast-host">
+		<div class="toast-msg" *ngFor="let toast of toasts" [class.toast-success]="toast.type === 'success'"
+			[class.toast-danger]="toast.type === 'danger'" (click)="dismissToast(toast.id)" role="alert"
+			aria-live="polite">
+			<span class="me-2">
+				<i class="bi" [ngClass]="toast.type === 'success' ? 'bi-check-circle' : 'bi-x-circle'"></i>
+			</span>
+			<span>{{ toast.text }}</span>
+			<span class="ms-auto opacity-75">✕</span>
+		</div>
+	</div>
+
+	<div *ngIf="loading" class="loader text-center py-5">
+		<div class="spinner-border text-primary" role="status">
+			<span class="visually-hidden">Loading...</span>
+		</div>
+		<p class="text-muted mt-3">Loading BB & ANW KPI data...</p>
+	</div>
+
+	<div *ngIf="error" class="error-message alert alert-danger text-center">
+		{{ error }}
+		<button type="button" class="btn btn-outline-danger btn-sm ms-3" (click)="loadData()">
+			Retry
+		</button>
+	</div>
+
+	<div *ngIf="!loading && !error">
+		<form (submit)="$event.preventDefault()" class="filters-form mb-4">
+			<div class="row g-3">
+				<div class="col-lg-2 col-md-4">
+					<label for="monthSelect" class="form-label">Month:</label>
+					<select id="monthSelect" class="form-select" [(ngModel)]="selectedMonth" name="monthSelect"
+						(change)="onPeriodChange()">
+						<option *ngFor="let month of monthOptions" [ngValue]="month.value">
+							{{ month.label }}
+						</option>
+					</select>
+				</div>
+
+				<div class="col-lg-2 col-md-4">
+					<label for="yearSelect" class="form-label">Year:</label>
+					<select id="yearSelect" class="form-select" [(ngModel)]="selectedYear" name="yearSelect"
+						(change)="onPeriodChange()">
+						<option *ngFor="let year of yearOptions" [ngValue]="year">
+							{{ year }}
+						</option>
+					</select>
+				</div>
+
+				<div class="col-lg-2 col-md-4">
+					<label for="dropdown1" class="form-label">R-GM:</label>
+					<select id="dropdown1" class="form-select" [(ngModel)]="formValues.dropdown1" name="dropdown1"
+						(change)="onDropdownChange('dropdown1', $any($event.target)?.value || '')">
+						<option value="">Select an option</option>
+						<option *ngFor="let region of regions" [value]="region">{{ region }}</option>
+					</select>
+				</div>
+
+				<div class="col-lg-2 col-md-4">
+					<label for="dropdown2" class="form-label">P-DGM:</label>
+					<select id="dropdown2" class="form-select" [(ngModel)]="formValues.dropdown2" name="dropdown2"
+						[disabled]="!formValues.dropdown1"
+						(change)="onDropdownChange('dropdown2', $any($event.target)?.value || '')">
+						<option value="">Select an option</option>
+						<option *ngFor="let province of dropdown2Options" [value]="province">{{ province }}</option>
+					</select>
+				</div>
+
+				<div class="col-lg-2 col-md-4">
+					<label for="dropdown3" class="form-label">NW EE:</label>
+					<select id="dropdown3" class="form-select" [(ngModel)]="formValues.dropdown3" name="dropdown3"
+						[disabled]="!formValues.dropdown2"
+						(change)="onDropdownChange('dropdown3', $any($event.target)?.value || '')">
+						<option value="">Select an option</option>
+						<option *ngFor="let engineer of dropdown3Options" [value]="engineer">{{ engineerNameMap[engineer] || engineer }}</option>
+					</select>
+				</div>
+
+				<div class="col-lg-2 col-md-4">
+					<label for="dropdown4" class="form-label">RTOM AREA:</label>
+					<select id="dropdown4" class="form-select" [(ngModel)]="formValues.dropdown4" name="dropdown4"
+						[disabled]="!formValues.dropdown3"
+						(change)="onDropdownChange('dropdown4', $any($event.target)?.value || '')">
+						<option value="">Select an option</option>
+						<option *ngFor="let area of dropdown4Options" [value]="area">
+							{{ optionMapping[area] || area }}
+						</option>
+					</select>
+				</div>
+			</div>
+		</form>
+
+		<div class="selected-filters mb-4">
+			<div class="filter-chip">
+				<span class="filter-label">Month:</span>
+				<span class="filter-value">{{ selectedMonthLabel }}</span>
+			</div>
+			<div class="filter-chip">
+				<span class="filter-label">Year:</span>
+				<span class="filter-value">{{ selectedYear }}</span>
+			</div>
+			<div class="filter-chip">
+				<span class="filter-label">R-GM:</span>
+				<span class="filter-value">{{ formValues.dropdown1 || 'Select an option' }}</span>
+			</div>
+			<div class="filter-chip">
+				<span class="filter-label">P-DGM:</span>
+				<span class="filter-value">{{ formValues.dropdown2 || 'Select an option' }}</span>
+			</div>
+			<div class="filter-chip">
+				<span class="filter-label">NW EE:</span>
+				<span class="filter-value">{{ formValues.dropdown3 ? (engineerNameMap[formValues.dropdown3] || formValues.dropdown3) : 'Select an option' }}</span>
+			</div>
+			<div class="filter-chip">
+				<span class="filter-label">RTOM AREA:</span>
+				<span class="filter-value">
+					{{ formValues.dropdown4 ? (optionMapping[formValues.dropdown4] || formValues.dropdown4) : 'Select an
+					option' }}
+				</span>
+			</div>
+		</div>
+
+		<div class="card shadow-sm border-0">
+			<div class="card-body p-0">
+				<div
+					class="card-header bg-primary text-white d-flex flex-wrap align-items-center justify-content-between gap-3">
+					<h5 class="mb-0">
+						<i class="bi bi-hdd-network-fill me-2"></i>
+						Saved BB & ANW KPI rows
+						<span *ngIf="showAreaMetrics" class="ms-2 small text-white-50">
+							(Showing metrics for {{ selectedAreaLabel }})
+						</span>
+					</h5>
+					<small *ngIf="isEditingAllowed" class="text-white-50 fw-semibold">Auto-saves per field</small>
+				</div>
+
+				<div class="table-responsive" *ngIf="!loading && data.length">
+					<table class="table table-hover table-bordered mb-0 data-table">
+						<thead class="table-dark">
+							<tr>
+								<th>No</th>
+								<th>KPI</th>
+								<th>Category</th>
+								<th>Target</th>
+								<th>Weightage</th>
+								<th *ngIf="showAreaMetrics">{{ selectedAreaLabel }} (Achievement %)</th>
+							</tr>
+						</thead>
+						<tbody>
+							<ng-container *ngFor="let row of data">
+								<tr>
+									<td>{{ row.order }}</td>
+									<td>{{ row.networkEngineerKpi }}</td>
+									<td>{{ row.division }}</td>
+									<td>{{ row.section }}</td>
+									<td>{{ row.kpiPercent ?? '--' }}</td>
+									<td *ngIf="showAreaMetrics" class="metric-value">
+										{{ getSelectedAvailability(row) }}
+									</td>
+								</tr>
+
+								<tr class="sub-row" *ngIf="showAreaMetrics">
+									<td></td>
+									<td class="sub-label" colspan="4">Unavailable Minutes</td>
+									<td class="metric-value">
+										<ng-container *ngIf="isEditingAllowed; else viewUnavailable">
+											<ng-container
+												*ngIf="isEditingCell(row, 'unavailableMinutes'); else unavailableDisplay">
+												<div class="edit-box">
+													<input type="number" class="form-control form-control-sm"
+														[ngModelOptions]="{ standalone: true }"
+														[(ngModel)]="editCell.value" step="0.01" />
+													<div class="edit-actions">
+														<button type="button" class="table-button" (click)="doneEdit()"
+															[disabled]="cellSaving">
+															<span *ngIf="cellSaving"
+																class="spinner-border spinner-border-sm me-1"
+																role="status"></span>
+															{{ cellSaving ? 'Saving...' : 'Save' }}
+														</button>
+														<button type="button" class="table-button btn-secondary"
+															(click)="cancelEdit()" [disabled]="cellSaving">
+															Cancel
+														</button>
+													</div>
+												</div>
+											</ng-container>
+											<ng-template #unavailableDisplay>
+												<div class="cell-view">
+													<span>{{ getMetricDisplay(row, 'unavailableMinutes') }}</span>
+													<button type="button" class="table-button"
+														(click)="startEdit(row, 'unavailableMinutes')">
+														Edit
+													</button>
+												</div>
+											</ng-template>
+										</ng-container>
+										<ng-template #viewUnavailable>
+											{{ getMetricDisplay(row, 'unavailableMinutes') }}
+										</ng-template>
+									</td>
+								</tr>
+								<tr class="sub-row" *ngIf="showAreaMetrics">
+									<td></td>
+									<td class="sub-label" colspan="4">Total Minutes</td>
+									<td class="metric-value">
+										<div class="cell-view">
+											<span>{{ getMetricDisplay(row, 'totalMinutes') }}</span>
+										</div>
+									</td>
+								</tr>
+								<tr class="sub-row" *ngIf="showAreaMetrics">
+									<td></td>
+									<td class="sub-label" colspan="4">Total Nodes</td>
+									<td class="metric-value">
+										<ng-container *ngIf="isEditingAllowed; else viewTotalNodes">
+											<ng-container
+												*ngIf="isEditingCell(row, 'totalNodes'); else totalNodesDisplay">
+												<div class="edit-box">
+													<input type="number" class="form-control form-control-sm"
+														[ngModelOptions]="{ standalone: true }"
+														[(ngModel)]="editCell.value" min="0" step="1" />
+													<div class="edit-actions">
+														<button type="button" class="table-button" (click)="doneEdit()"
+															[disabled]="cellSaving">
+															<span *ngIf="cellSaving"
+																class="spinner-border spinner-border-sm me-1"
+																role="status"></span>
+															{{ cellSaving ? 'Saving...' : 'Save' }}
+														</button>
+														<button type="button" class="table-button btn-secondary"
+															(click)="cancelEdit()" [disabled]="cellSaving">
+															Cancel
+														</button>
+													</div>
+												</div>
+											</ng-container>
+											<ng-template #totalNodesDisplay>
+												<div class="cell-view">
+													<span>{{ getMetricDisplay(row, 'totalNodes') }}</span>
+													<button type="button" class="table-button"
+														(click)="startEdit(row, 'totalNodes')">
+														Edit
+													</button>
+												</div>
+											</ng-template>
+										</ng-container>
+										<ng-template #viewTotalNodes>
+											{{ getMetricDisplay(row, 'totalNodes') }}
+										</ng-template>
+									</td>
+								</tr>
+
+							</ng-container>
+						</tbody>
+					</table>
+				</div>
+
+				<div *ngIf="!loading && !data.length" class="text-center py-5 text-muted">
+					<i class="bi bi-folder2-open d-block mb-2"></i>
+					<span>No KPI rows have been saved yet.</span>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

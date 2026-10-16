@@ -1,0 +1,150 @@
+<div class="kpi-page">
+  <div class="kpi-overlay"></div>
+
+  <section class="hero-panel">
+    <div class="hero-content">
+      <h1>{{ pageTitle }}</h1>
+      <p class="hero-subtitle">Track tower maintenance activities across network areas.</p>
+    </div>
+    <div class="hero-actions">
+      <button type="button" class="export-btn" (click)="exportToExcel()" [disabled]="!headers.length || loading">
+        Export to Excel
+      </button>
+    </div>
+  </section>
+
+  <section class="table-section">
+    <div class="state" *ngIf="loading">Loading tower maintenance plan...</div>
+    <ng-container *ngIf="!loading">
+      <div class="state error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+      <article class="data-card">
+        <header>
+          <div>
+            <h2><i class="bi bi-clipboard-data-fill me-2"></i>Strategic KPI Overview</h2>
+            <p>Definitions retrieved from Tower Maintenance (hardcoded) dataset.</p>
+          </div>
+
+          <!-- ✅ FILTER BAR INSIDE TABLE TITLE STRIPE -->
+          <div class="header-filters">
+            <div class="filter-group">
+              <label for="tm-activity-month-select">Month:</label>
+              <select id="tm-activity-month-select" class="filter-select" [(ngModel)]="selectedMonth"
+                (ngModelChange)="onMonthChange($event)">
+                <option *ngFor="let month of monthOptions" [ngValue]="month.value">
+                  {{ month.label }}
+                </option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label for="tm-activity-year-select">Year:</label>
+              <select id="tm-activity-year-select" class="filter-select" [(ngModel)]="selectedYear"
+                (ngModelChange)="onYearChange($event)">
+                <option *ngFor="let year of yearOptions" [ngValue]="year">
+                  {{ year }}
+                </option>
+              </select>
+            </div>
+          </div>
+        </header>
+
+        <ng-container *ngIf="hardcodedTableData.length; else noKpiRows">
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>KPI</th>
+                  <th>Target</th>
+                  <th>Category</th>
+                  <th *ngFor="let header of headers; trackBy: trackByHeader">{{ getHeaderDisplay(header) }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let row of hardcodedTableData; let rowIndex = index">
+                  <td>{{ row.kpi || '-' }}</td>
+                  <td>{{ row.target || '-' }}</td>
+                  <td>{{ row.calculation || '-' }}</td>
+                  <td *ngFor="let value of calculatedValues; let colIndex = index" class="achievement-cell">
+                    {{ value || '0.00' }}%
+                    <div class="approval-icon"
+                         *ngIf="getMainTableDetailId(rowIndex, colIndex) !== undefined"
+                         [ngClass]="getMainTableIsVerified(rowIndex, colIndex) ? 'approved' : 'unapproved'"
+                         title="Verification status">
+                      <i class="bi bi-check" *ngIf="getMainTableIsVerified(rowIndex, colIndex)"></i>
+                      <i class="bi bi-x" *ngIf="!getMainTableIsVerified(rowIndex, colIndex)"></i>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </ng-container>
+        <ng-template #noKpiRows>
+          <div class="state">No KPI definitions available.</div>
+        </ng-template>
+      </article>
+
+      <ng-container *ngIf="headers.length; else noDynamicData">
+        <article class="data-card" *ngFor="let title of tableTitles; let i = index">
+          <header>
+            <div>
+              <h2>
+                <i class="bi me-2" [ngClass]="{
+                  'bi-brush-fill': i === 0,
+                  'bi-eye-fill': i === 1,
+                  'bi-lightning-charge-fill': i === 2
+                }"></i>{{ title }}
+              </h2>
+              <p>Distribution vs achievement per region.</p>
+            </div>
+          </header>
+
+          <div class="table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th rowspan="2">Month</th>
+                  <th *ngFor="let header of headers; trackBy: trackByHeader" colspan="2">{{ getHeaderDisplay(header) }}</th>
+                </tr>
+                <tr>
+                  <ng-container *ngFor="let header of headers; trackBy: trackByHeader">
+                    <th>Distribution</th>
+                    <th>Achievement</th>
+                  </ng-container>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td># Towers</td>
+                  <ng-container *ngFor="let header of headers; trackBy: trackByHeader">
+                    <td colspan="2"><strong>{{ towerSums[header] ?? 0 }}</strong></td>
+                  </ng-container>
+                </tr>
+                <tr *ngFor="let entry of tableData; trackBy: trackByMonth">
+                  <td>{{ entry.month }}</td>
+                  <ng-container *ngFor="let header of headers; trackBy: trackByHeader">
+                    <td>{{ getDetailValue(entry, header, 'Column2') }}</td>
+                    <td class="achievement-cell">
+                      {{ getDetailValue(entry, header, 'Column3') }}
+                      <div class="approval-icon"
+                           *ngIf="getDetailId(entry, header)"
+                           [ngClass]="getIsVerified(entry, header) ? 'approved' : 'unapproved'"
+                           (click)="toggleVerified(entry, header)"
+                           [title]="canEditMetrics ? 'Click to toggle approval' : 'Verification status'">
+                        <i class="bi bi-check" *ngIf="getIsVerified(entry, header)"></i>
+                        <i class="bi bi-x" *ngIf="!getIsVerified(entry, header)"></i>
+                      </div>
+                    </td>
+                  </ng-container>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </ng-container>
+      <ng-template #noDynamicData>
+        <div class="state">No monthly tower activity data available.</div>
+      </ng-template>
+    </ng-container>
+  </section>
+</div>
