@@ -8,7 +8,8 @@ import { IpNwOpService, IpNwOpKpiDto, IpNwOpMetricPayload, IpNwOpMetric } from '
 import { RegionService, Region } from '../../../../services/region.service';
 import { AuthService } from '../../../../services/auth.service';
 import { FilterUtils } from '../../../../utils/filter.utils';
-import { buildEngineerDisplayMap, mapRegionRecords } from '../../../../utils/region-display.utils';
+import { buildAreaLabels, buildEngineerDisplayMap, getScopedLeas, mapRegionRecords } from '../../../../utils/region-display.utils';
+import { environment } from '../../../../../environments/environment';
 
 interface RegionRow {
   region?: string;
@@ -16,6 +17,13 @@ interface RegionRow {
   networkEngineer?: string;
   lea?: string; // friendly string in DB like "AD / PR"
   engName?: string;
+}
+
+interface RtomAreaLookup {
+  areaCode?: string;
+  displayName?: string;
+  AreaCode?: string;
+  DisplayName?: string;
 }
 
 
@@ -53,13 +61,20 @@ export class IpNwOpComponent implements OnInit, OnDestroy {
     dropdown1: '', // Region
     dropdown2: '', // Province
     dropdown3: '', // Engineer
-    dropdown4: '', // RTOM area db key (lowercase)
   };
 
   dropdown2Options: string[] = [];
   dropdown3Options: string[] = [];
-  dropdown4Options: string[] = [];
   engineerNameMap: Record<string, string> = {};
+
+  // Normalized database area keys shown in the table and export.
+  areaKeys: string[] = [];
+  private areaLabels: Record<string, string> = {};
+  areaEngineerGroups: { label: string; areaKeys: string[] }[] = [];
+  private databaseAreaKeyByCode: Record<string, string> = {};
+  private databaseAreaKeyByLabel: Record<string, string> = {};
+  private databaseAreaCodeByKey: Record<string, string> = {};
+  private databaseAreaLabelByKey: Record<string, string> = {};
 
   // edit cell state (nested key like "total_nodes.adipr")
   editCell: { rowId: number | null; key: string | null; value: string } = {
@@ -72,32 +87,6 @@ export class IpNwOpComponent implements OnInit, OnDestroy {
   toasts: Array<{ id: number; type: 'success' | 'danger'; text: string }> = [];
   private toastId = 1;
 
-  // ---- IP NW OP mapping (DB keys are lowercase) ----
-  optionMapping: Record<string, string> = {
-    cenhkmd: 'CEN/HK/MD',
-    cenhkmd1: 'CEN/HK/MD',
-    gqkintb: 'GQ / KI / NTB',
-    ndfrm: 'ND / RM',
-    awho: 'AW / HO',
-    konix: 'KON / KX',
-    ngivt: 'NG / WT',
-    kgkly: 'KG / KLY',
-    cwpx: 'CW / PX',
-    debkymt: 'DB / KY / MT',
-    gphtnw: 'GP / HT / NW',
-    adipr: 'AD / PR',
-    bddwmrg: 'BD / BW / MRG',
-    keirn: 'KE / RN',
-    embmbmh: 'EMB / HB / MH',
-    aggl: 'AG / GL',
-    hrktph: 'HR / KT / PH',
-    bcjrdkltc: 'BC / AP / KL / TC',
-    ja: 'JA',
-    komltmbva: 'KO / MLT / MB / VA',
-  };
-
-  // friendly -> dbKey (built once)
-  private friendlyToDbKey: Record<string, string> = {};
   private filtersInitialized = false;
 
   // Injects the required dependencies.
@@ -112,8 +101,8 @@ export class IpNwOpComponent implements OnInit, OnDestroy {
 
   // Initializes the component, loads the region table, and fetches data.
   ngOnInit(): void {
-    this.buildFriendlyMap();
     this.loadRegionTable();
+    this.loadRtomAreaLookup();
     this.initializeFilters();
     this.loadData();
   }
@@ -142,16 +131,6 @@ export class IpNwOpComponent implements OnInit, OnDestroy {
     return new Date(year, month, 0).getDate();
   }
 
-  // Builds a mapping of friendly names to database keys.
-  private buildFriendlyMap(): void {
-    const out: Record<string, string> = {};
-    Object.keys(this.optionMapping).forEach((dbKey) => {
-      out[this.norm(this.optionMapping[dbKey])] = dbKey;
-      out[this.norm(dbKey)] = dbKey;
-    });
-    this.friendlyToDbKey = out;
-  }
-
   // Displays a toast notification.
   private showToast(type: 'success' | 'danger', text: string): void {
     const id = this.toastId++;
@@ -164,42 +143,128 @@ export class IpNwOpComponent implements OnInit, OnDestroy {
     this.toasts = this.toasts.filter((t) => t.id !== id);
   }
 
-  // Selected RTOM db key (lowercase)
-  // Gets the normalized selected RTOM database key.
-  get selectedKey(): string {
-    return this.formValues.dropdown4 ? this.norm(this.formValues.dropdown4) : '';
-  }
-
   // Regions list
   // Gets a list of unique regions from the region table.
   get regions(): string[] {
     return Array.from(new Set(this.regionTable.map((r) => r.region).filter(Boolean) as string[]));
   }
 
-  // Checks if an area filter is currently applied.
-  get hasAreaFilter(): boolean {
-    return !!this.selectedKey;
-  }
-
-  // Checks if the user has permission to edit metrics for the selected area.
+  // Checks if the user has permission to edit metrics.
   get canEditMetrics(): boolean {
-    return this.isEditingAllowed && this.hasAreaFilter;
+    return this.isEditingAllowed;
   }
 
-  // Gets the display label for the selected area.
-  get selectedAreaLabel(): string {
-    const key = this.formValues.dropdown4;
-    if (!key) return '';
-    return this.optionMapping[key] || key.toUpperCase();
+  // Gets the display label for an area code (disambiguated when two codes share a label).
+  areaLabel(areaKey: string): string {
+    return this.areaLabels[areaKey] ?? this.baseAreaLabel(areaKey);
   }
 
-  // Calculates and returns the availability percentage for the selected area.
-  getAreaPercentage(entry: IpNwOpKpiDto): string {
-    if (!this.selectedKey) return '-';
+  private baseAreaLabel(areaKey: string): string {
+    return this.databaseAreaLabelByKey[areaKey] || areaKey.toUpperCase();
+  }
 
+  private resolveDatabaseAreaKey(value?: string | null): string {
+    const normalized = this.norm(value);
+    return normalized
+      ? (this.databaseAreaKeyByCode[normalized] || this.databaseAreaKeyByLabel[normalized] || normalized)
+      : '';
+  }
+
+  private loadRtomAreaLookup(): void {
+    this.http.get<RtomAreaLookup[]>(`${environment.apiUrl}/rtom-areas`).subscribe({
+      next: (areas) => {
+        this.databaseAreaKeyByCode = {};
+        this.databaseAreaKeyByLabel = {};
+        this.databaseAreaCodeByKey = {};
+        this.databaseAreaLabelByKey = {};
+
+        (areas ?? []).forEach((area) => {
+          const databaseCode = (area.areaCode ?? area.AreaCode)?.trim();
+          if (!databaseCode) return;
+          const key = this.norm(databaseCode);
+          if (!key) return;
+
+          this.databaseAreaKeyByCode[key] = key;
+          this.databaseAreaCodeByKey[key] = databaseCode;
+          const displayName = (area.displayName ?? area.DisplayName)?.trim();
+          if (displayName) {
+            const normalizedLabel = this.norm(displayName);
+            if (normalizedLabel) this.databaseAreaKeyByLabel[normalizedLabel] = key;
+            this.databaseAreaLabelByKey[key] = displayName;
+          }
+        });
+
+        if (!areas?.length) {
+          console.error('RTOM area lookup returned no database records.');
+          this.showToast('danger', 'RTOM area lookup is empty; area metrics may not match region codes.');
+        }
+        this.refreshAreaKeys();
+      },
+      error: (error) => {
+        console.error('Failed to fetch RTOM area lookup from API:', error);
+        this.showToast('danger', 'RTOM area labels could not be loaded; using region LEA codes.');
+        this.refreshAreaKeys();
+      }
+    });
+  }
+
+  // Build area columns and NW EE groups from region data and stored KPI metric keys.
+  private refreshAreaKeys(): void {
+    const { dropdown1, dropdown2, dropdown3 } = this.formValues;
+    const scopedRegions = this.regionTable.filter((region) =>
+      (!dropdown1 || region.region === dropdown1) &&
+      (!dropdown2 || region.province === dropdown2) &&
+      (!dropdown3 || region.networkEngineer === dropdown3)
+    );
+    const labelsByAreaKey = new Map<string, string>();
+    const engineerByAreaKey = new Map<string, string>();
+    this.regionTable.forEach((region) => {
+      const key = this.resolveDatabaseAreaKey(region.lea);
+      if (!key) return;
+      if (!labelsByAreaKey.has(key)) labelsByAreaKey.set(key, this.baseAreaLabel(key));
+    });
+    scopedRegions.forEach((region) => {
+      const key = this.resolveDatabaseAreaKey(region.lea);
+      if (key && !engineerByAreaKey.has(key)) {
+        engineerByAreaKey.set(key, region.networkEngineer?.trim() || 'Unassigned NW EE');
+      }
+    });
+
+    const keys = new Set(
+      getScopedLeas(this.regionTable, { region: dropdown1, province: dropdown2, engineer: dropdown3 })
+        .map((lea) => this.resolveDatabaseAreaKey(lea))
+        .filter(Boolean)
+    );
+    if (!dropdown1) {
+      this.metrics.forEach((metric) => {
+        const key = this.resolveDatabaseAreaKey(metric.area_code);
+        if (key) keys.add(key);
+      });
+    }
+    const labelOf = (key: string) => labelsByAreaKey.get(key) || this.baseAreaLabel(key);
+    this.areaKeys = Array.from(keys).sort((a, b) => labelOf(a).localeCompare(labelOf(b)));
+    this.areaLabels = buildAreaLabels(this.areaKeys, labelOf);
+    const groups = new Map<string, Set<string>>();
+    this.areaKeys.forEach((key) => {
+      const engineer = engineerByAreaKey.get(key) || 'Unassigned NW EE';
+      if (!groups.has(engineer)) groups.set(engineer, new Set<string>());
+      groups.get(engineer)!.add(key);
+    });
+    this.areaEngineerGroups = Array.from(groups.entries())
+      .map(([engineer, areaKeys]) => ({
+        label: this.engineerNameMap[engineer] || engineer,
+        areaKeys: this.areaKeys.filter((key) => areaKeys.has(key))
+      }))
+      .filter((group) => group.areaKeys.length > 0)
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }
+
+  // Calculates and returns the availability percentage for an area.
+  getAreaPercentage(entry: IpNwOpKpiDto, areaKey: string): string {
     // Find metric for this KPI and area
     const metric = this.metrics.find(
-      m => m.ip_nw_op_kpi_id === entry.id && m.area_code === this.selectedKey
+      m => m.ip_nw_op_kpi_id === entry.id &&
+        this.resolveDatabaseAreaKey(m.area_code) === this.resolveDatabaseAreaKey(areaKey)
     );
 
     if (!metric) {
@@ -210,16 +275,16 @@ export class IpNwOpComponent implements OnInit, OnDestroy {
     return pct !== null && Number.isFinite(pct) ? `${pct.toFixed(2)}%` : '-';
   }
 
-  // Gets the value for a specific metric bucket in the selected area.
+  // Gets the value for a specific metric bucket in an area.
   getAreaMetric(
     entry: IpNwOpKpiDto,
-    bucket: 'total_minutes' | 'unavailable_minutes' | 'total_nodes'
+    bucket: 'total_minutes' | 'unavailable_minutes' | 'total_nodes',
+    areaKey: string
   ): string {
-    if (!this.selectedKey) return '-';
-
     // Find metric for this KPI and area
     const metric = this.metrics.find(
-      m => m.ip_nw_op_kpi_id === entry.id && m.area_code === this.selectedKey
+      m => m.ip_nw_op_kpi_id === entry.id &&
+        this.resolveDatabaseAreaKey(m.area_code) === this.resolveDatabaseAreaKey(areaKey)
     );
 
     if (!metric) return '-';
@@ -259,12 +324,14 @@ export class IpNwOpComponent implements OnInit, OnDestroy {
       next: (res: Region[] | any[]) => {
         this.regionTable = mapRegionRecords(res) as RegionRow[];
         this.initializeFilters();
+        this.refreshAreaKeys();
       },
       error: (err) => {
         console.error('Failed to fetch region table:', err);
         this.regionTable = [];
         this.showToast('danger', 'Failed to load region data. Filters are unavailable until regiondata is reachable.');
         this.initializeFilters();
+        this.refreshAreaKeys();
       },
     });
   }
@@ -275,13 +342,12 @@ export class IpNwOpComponent implements OnInit, OnDestroy {
     this.error = null;
     this.metrics = [];
 
-    // Pass area parameter if selected
-    const areaParam = this.selectedKey || undefined;
-
-    this.ipNwOpService.getAll(this.selectedMonth, this.selectedYear, areaParam).subscribe({
+    // No area parameter: load every area for the period.
+    this.ipNwOpService.getAll(this.selectedMonth, this.selectedYear).subscribe({
       next: (records) => {
         this.data = Array.isArray(records) ? (records as IpNwOpKpiDto[]) : [];
-        this.metrics = this.selectedKey ? this.buildMetricsFromKpis(this.data, this.selectedKey) : [];
+        this.metrics = this.buildMetricsFromKpis(this.data);
+        this.refreshAreaKeys();
         this.loading = false;
         this.cdr.detectChanges();
       },
@@ -295,25 +361,24 @@ export class IpNwOpComponent implements OnInit, OnDestroy {
     });
   }
 
-  // Builds a list of metrics from the KPI entries for the specified area.
-  private buildMetricsFromKpis(entries: IpNwOpKpiDto[], areaKey: string): IpNwOpMetric[] {
-    const key = this.norm(areaKey);
-    if (!key) return [];
+  // Builds one metric per KPI and stored area code; keys are the server's lowercase area codes.
+  private buildMetricsFromKpis(entries: IpNwOpKpiDto[]): IpNwOpMetric[] {
+    return entries.flatMap((entry) => {
+      const keys = new Set([
+        ...Object.keys(entry.unavailable_minutes ?? {}),
+        ...Object.keys(entry.total_minutes ?? {}),
+        ...Object.keys(entry.total_nodes ?? {}),
+      ]);
 
-    return entries.map((entry) => {
-      const unavailable = entry.unavailable_minutes?.[key] ?? null;
-      const totalMinutes = entry.total_minutes?.[key] ?? null;
-      const totalNodes = entry.total_nodes?.[key] ?? null;
-
-      return {
+      return Array.from(keys).filter(Boolean).map((key) => ({
         ip_nw_op_kpi_id: entry.id,
         area_code: key,
         month: this.selectedMonth,
         year: this.selectedYear,
-        unavailable_minutes: unavailable,
-        total_minutes: totalMinutes,
-        total_nodes: totalNodes,
-      } as IpNwOpMetric;
+        unavailable_minutes: entry.unavailable_minutes?.[key] ?? null,
+        total_minutes: entry.total_minutes?.[key] ?? null,
+        total_nodes: entry.total_nodes?.[key] ?? null,
+      } as IpNwOpMetric));
     });
   }
 
@@ -367,30 +432,6 @@ export class IpNwOpComponent implements OnInit, OnDestroy {
     this.engineerNameMap = buildEngineerDisplayMap(this.regionTable, this.dropdown3Options);
   }
 
-  // Updates the LEA area options based on the selected engineer.
-  private updateDropdown4Options(engineer: string): void {
-    if (!engineer || !this.formValues.dropdown1 || !this.formValues.dropdown2) {
-      this.dropdown4Options = [];
-      return;
-    }
-
-    const leas = Array.from(
-      new Set(
-        this.regionTable
-          .filter(
-            (x) =>
-              x.region === this.formValues.dropdown1 &&
-              x.province === this.formValues.dropdown2 &&
-              x.networkEngineer === engineer
-          )
-          .map((x) => this.friendlyToDbKey[this.norm(x.lea)] || this.norm(x.lea))
-          .filter(Boolean)
-      )
-    );
-
-    this.dropdown4Options = leas;
-  }
-
   // Initializes all filter dropdown values.
   private initializeFilters(): void {
     if (this.filtersInitialized) return;
@@ -399,53 +440,30 @@ export class IpNwOpComponent implements OnInit, OnDestroy {
     this.formValues.dropdown1 = '';
     this.formValues.dropdown2 = '';
     this.formValues.dropdown3 = '';
-    this.formValues.dropdown4 = '';
 
     this.filtersInitialized = true;
   }
 
-  // Handles changes to any of the filter dropdowns.
-  onDropdownChange(name: 'dropdown1' | 'dropdown2' | 'dropdown3' | 'dropdown4', value: string): void {
+  // Handles changes to any of the filter dropdowns; they narrow the area columns client-side.
+  onDropdownChange(name: 'dropdown1' | 'dropdown2' | 'dropdown3', value: string): void {
     if (name === 'dropdown1') {
       this.formValues.dropdown1 = value;
       this.formValues.dropdown2 = '';
       this.formValues.dropdown3 = '';
-      this.formValues.dropdown4 = '';
 
       this.updateDropdown2Options(value);
       this.dropdown3Options = [];
-      this.dropdown4Options = [];
-      this.cancelEdit();
-      this.loadData();
-      return;
-    }
-
-    if (name === 'dropdown2') {
+    } else if (name === 'dropdown2') {
       this.formValues.dropdown2 = value;
       this.formValues.dropdown3 = '';
-      this.formValues.dropdown4 = '';
 
       this.updateDropdown3Options(value);
-      this.dropdown4Options = [];
-      this.cancelEdit();
-      this.loadData();
-      return;
-    }
-
-    if (name === 'dropdown3') {
+    } else {
       this.formValues.dropdown3 = value;
-      this.formValues.dropdown4 = '';
-
-      this.updateDropdown4Options(value);
-      this.cancelEdit();
-      this.loadData();
-      return;
     }
 
-    // dropdown4 - Area changed
-    this.formValues.dropdown4 = value;
     this.cancelEdit();
-    this.loadData();
+    this.refreshAreaKeys();
   }
 
 
@@ -472,15 +490,16 @@ export class IpNwOpComponent implements OnInit, OnDestroy {
   // Editing
   // -------------------------
   // Starts editing a specific metric cell.
-  startEdit(entry: IpNwOpKpiDto, key: 'unavailable_minutes' | 'total_minutes' | 'total_nodes'): void {
-    if (!this.canEditMetrics) return;
+  startEdit(entry: IpNwOpKpiDto, key: 'unavailable_minutes' | 'total_minutes' | 'total_nodes', areaKey: string): void {
+    if (!this.canEditMetrics || !areaKey) return;
 
-    const k = this.selectedKey;
+    const k = areaKey;
     const nestedKey = `${key}.${k}`;
 
     // Find the current metric value
     const metric = this.metrics.find(
-      m => m.ip_nw_op_kpi_id === entry.id && m.area_code === k
+      m => m.ip_nw_op_kpi_id === entry.id &&
+        this.resolveDatabaseAreaKey(m.area_code) === this.resolveDatabaseAreaKey(k)
     );
 
     const currentVal = metric ? metric[key] : null;
@@ -516,6 +535,7 @@ export class IpNwOpComponent implements OnInit, OnDestroy {
       numericValue === null || Number.isFinite(numericValue) ? numericValue : null;
 
     const kpiId = this.editCell.rowId;
+    const areaCode = this.getStoredAreaCode(childKey);
     this.cancelEdit();
 
     const payload: IpNwOpMetricPayload = {};
@@ -531,12 +551,12 @@ export class IpNwOpComponent implements OnInit, OnDestroy {
     try {
       this.saving = true;
       await firstValueFrom(
-        this.ipNwOpService.upsertMetric(kpiId, childKey, this.selectedMonth, this.selectedYear, payload)
+        this.ipNwOpService.upsertMetric(kpiId, areaCode, this.selectedMonth, this.selectedYear, payload)
       );
       this.showToast('success', 'Metric updated successfully.');
-      const areaCode = this.norm(childKey);
       let metric = this.metrics.find(
-        (m) => m.ip_nw_op_kpi_id === kpiId && m.area_code === areaCode
+        (m) => m.ip_nw_op_kpi_id === kpiId &&
+          this.resolveDatabaseAreaKey(m.area_code) === this.resolveDatabaseAreaKey(childKey)
       );
 
       if (!metric) {
@@ -567,6 +587,17 @@ export class IpNwOpComponent implements OnInit, OnDestroy {
     }
   }
 
+  private getStoredAreaCode(areaKey: string): string {
+    const storedCode = this.metrics.find(
+      metric => this.resolveDatabaseAreaKey(metric.area_code) === this.resolveDatabaseAreaKey(areaKey)
+    )?.area_code;
+    return storedCode || this.databaseAreaCodeByKey[this.resolveDatabaseAreaKey(areaKey)] || areaKey;
+  }
+
+  private getAreaEngineerLabel(areaKey: string): string {
+    return this.areaEngineerGroups.find(group => group.areaKeys.includes(areaKey))?.label ?? '';
+  }
+
   // Cancels the current edit operation.
   cancelEdit(): void {
     this.editCell = { rowId: null, key: null, value: '' };
@@ -575,10 +606,11 @@ export class IpNwOpComponent implements OnInit, OnDestroy {
   // Checks if a specific cell is currently being edited.
   isCellEditing(
     rowId: number,
-    bucket: 'unavailable_minutes' | 'total_minutes' | 'total_nodes'
+    bucket: 'unavailable_minutes' | 'total_minutes' | 'total_nodes',
+    areaKey: string
   ): boolean {
-    if (!this.selectedKey || !this.editCell.key) return false;
-    return this.editCell.rowId === rowId && this.editCell.key === `${bucket}.${this.selectedKey}`;
+    if (!this.editCell.key) return false;
+    return this.editCell.rowId === rowId && this.editCell.key === `${bucket}.${areaKey}`;
   }
 
   // Handles keyboard events for the editing input field.
@@ -603,7 +635,7 @@ export class IpNwOpComponent implements OnInit, OnDestroy {
     const workbook = new ExcelJS.Workbook();
     const ws = workbook.addWorksheet('Network Availability');
 
-    const areas = Object.keys(this.optionMapping);
+    const areas = this.areaKeys;
 
     ws.addRow(['KPI (NW Availability - IP Core NW / BSR NW / Service Edge NW)']);
     ws.addRow([`Generated Date: ${new Date().toISOString().split('T')[0]}`]);
@@ -615,7 +647,10 @@ export class IpNwOpComponent implements OnInit, OnDestroy {
       'Division',
       'Section',
       'KPI Percent',
-      ...areas.map((a) => this.optionMapping[a] || a),
+      ...areas.map((area) => {
+        const engineer = this.getAreaEngineerLabel(area);
+        return engineer ? `${engineer} - ${this.areaLabel(area)}` : this.areaLabel(area);
+      }),
     ];
 
     const headerRow = ws.addRow(headers);
@@ -640,10 +675,7 @@ export class IpNwOpComponent implements OnInit, OnDestroy {
         entry.kpi_percent,
       ];
 
-      areas.forEach((a) => {
-        // Metrics are now stored separately, placeholder for now
-        row.push('');
-      });
+      areas.forEach((a) => row.push(this.getAreaPercentage(entry, a)));
 
       const r = ws.addRow(row);
       r.eachCell((cell: ExcelJS.Cell) => {
@@ -656,16 +688,15 @@ export class IpNwOpComponent implements OnInit, OnDestroy {
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
       });
 
-      // Sub-rows (placeholders for metrics)
+      // Sub-rows with each area's stored metric values
       const tm: any[] = ['', 'Total Minutes', '', '', ''];
       const um: any[] = ['', 'Unavailable Minutes', '', '', ''];
       const tn: any[] = ['', 'Total Nodes', '', '', ''];
 
       areas.forEach((a) => {
-        // Metrics are now stored separately
-        tm.push('');
-        um.push('');
-        tn.push('');
+        tm.push(this.getAreaMetric(entry, 'total_minutes', a));
+        um.push(this.getAreaMetric(entry, 'unavailable_minutes', a));
+        tn.push(this.getAreaMetric(entry, 'total_nodes', a));
       });
 
       [tm, um, tn].forEach((arr) => {
@@ -701,4 +732,3 @@ export class IpNwOpComponent implements OnInit, OnDestroy {
     URL.revokeObjectURL(link.href);
   }
 }
-

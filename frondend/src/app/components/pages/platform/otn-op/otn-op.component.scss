@@ -32,6 +32,43 @@
 	}
 }
 
+.otn-heading {
+	flex: 0 1 400px;
+	min-width: 320px;
+}
+
+.otn-op-filters {
+	flex: 1 1 760px;
+	min-width: 0;
+	margin: 0;
+	padding: 12px 20px;
+}
+
+@media (max-width: 1399px) {
+	.otn-heading {
+		flex: 1 1 320px;
+	}
+
+	.otn-op-filters {
+		order: 3;
+		flex: 1 1 100%;
+	}
+
+	.header-actions {
+		order: 2;
+	}
+}
+
+@media (max-width: 575px) {
+	.otn-heading {
+		min-width: 0;
+	}
+
+	.otn-op-filters {
+		padding: 14px;
+	}
+}
+
 .header-actions .primary-btn {
 	padding: 0.55rem 1.4rem;
 	border-radius: 999px;

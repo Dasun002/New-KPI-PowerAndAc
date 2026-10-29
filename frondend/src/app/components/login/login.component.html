@@ -60,13 +60,17 @@
                 </svg>
                 {{ loading ? 'Connecting...' : 'Sign in with Microsoft' }}
             </button>
-        </ng-container>
 
-        <!-- DEV ONLY: bypass button, hidden in production builds -->
-        <ng-container *ngIf="!isAzureAuthenticated && isDevMode">
-            <div class="separator">dev only</div>
-            <button class="login-btn" (click)="devSignIn()">
-                Dev Bypass Login
+            <div *ngIf="!environment.production" class="form-group">
+                <label for="developmentServiceId" class="form-label">Development Service ID</label>
+                <input type="text" id="developmentServiceId" [(ngModel)]="developmentServiceId"
+                    name="developmentServiceId" class="form-control" placeholder="Enter a Service ID"
+                    autocomplete="off">
+            </div>
+
+            <button *ngIf="!environment.production" class="login-btn" (click)="developmentLogin()"
+                [disabled]="loading || !developmentServiceId.trim()">
+                {{ loading ? 'Signing in...' : 'Development Login' }}
             </button>
         </ng-container>
     </div>

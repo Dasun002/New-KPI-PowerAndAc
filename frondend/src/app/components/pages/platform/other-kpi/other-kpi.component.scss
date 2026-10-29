@@ -1,6 +1,39 @@
 @use '../service-fulfilment/service-fulfilment.component.scss' as *;
 @import '../shared-page-styles.scss';
 
+.page-heading {
+  flex: 0 1 400px;
+  min-width: 320px;
+}
+
+.other-kpi-filters {
+  flex: 1 1 760px;
+  min-width: 0;
+  margin: 0;
+  padding: 12px 20px;
+}
+
+@media (max-width: 1399px) {
+  .page-heading {
+    flex: 1 1 320px;
+  }
+
+  .other-kpi-filters {
+    order: 3;
+    flex: 1 1 100%;
+  }
+}
+
+@media (max-width: 575px) {
+  .page-heading {
+    min-width: 0;
+  }
+
+  .other-kpi-filters {
+    padding: 14px;
+  }
+}
+
 .pac-year-select {
   width: auto;
   min-width: 110px;

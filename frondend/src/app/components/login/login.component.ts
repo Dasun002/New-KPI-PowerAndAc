@@ -1,3 +1,10 @@
+/*
+ File: login.component.ts
+ Description: User login component
+ Purpose: Handles user authentication through Azure AD and local service ID login.
+ Features: Azure SSO with MSAL, local login fallback, session persistence
+*/
+
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -8,6 +15,8 @@ import { loginRequest } from '../../auth-config';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
 
+/* ========== LOGIN COMPONENT ========== */
+
 @Component({
     selector: 'app-login',
     standalone: true,
@@ -16,12 +25,19 @@ import { environment } from '../../../environments/environment';
     styleUrls: ['./login.component.css']
 })
 export class LoginComponent implements OnInit {
+    readonly environment = environment;
+    /* User's service ID input for local login */
     serviceId = '';
+    /* Service ID selected for development-only login */
+    developmentServiceId = '';
+    /* Loading state indicator */
     loading = false;
+    /* Error message display */
     error = '';
+    /* Azure authentication status */
     isAzureAuthenticated = false;
+    /* Authenticated Azure email address */
     azureEmail = '';
-    isDevMode = !environment.production;
 
     constructor(
         private authService: AuthService,
@@ -34,16 +50,26 @@ export class LoginComponent implements OnInit {
     ngOnInit(): void {
         console.log('[Login] Checking for existing Azure session and redirect results...');
 
+        // Always handle redirect promise first to capture tokens from Azure
         this.msalService.instance.handleRedirectPromise().then(result => {
             if (result) {
-                if (result.account) {
-                    console.log('[Login] Redirect success:', result.account.username);
-                    this.setAzureState(result.account.username);
-                }
+                //console.log('[Login] Redirect success:', result.account.username);
+				if (result.account) {
+    console.log('[Login] Redirect success:', result.account.username);
+
+    this.setAzureState(result.account.username);
+}
                 this.msalService.instance.setActiveAccount(result.account);
-                return;
+               // this.setAzureState(result.account.username);
+			   if (result.account) {
+    console.log('[Login] Redirect success:', result.account.username);
+
+    this.setAzureState(result.account.username);
+}
+                return; // Stop here if we just got a redirect result
             }
 
+            // If no redirect result, check for existing active account
             const activeAccount = this.msalService.instance.getActiveAccount();
             const allAccounts = this.msalService.instance.getAllAccounts();
 
@@ -60,6 +86,7 @@ export class LoginComponent implements OnInit {
             this.error = 'Azure login failed to process redirect';
         });
 
+        // Redirect if already logged in to our backend
         if (this.authService.userValue) {
             this.router.navigate(['/dashboard']);
         }
@@ -74,12 +101,15 @@ export class LoginComponent implements OnInit {
         this.loading = true;
         this.error = '';
 
+        // Azure authentication is mandatory - users must complete Azure login first
         if (!this.isAzureAuthenticated || !this.azureEmail) {
             this.error = 'Please sign in with Microsoft first';
             this.loading = false;
             return;
         }
 
+        // Two-step verification: Azure email (proves SLT authentication) + Service ID (from database)
+        // These are completely independent - no linking between them
         this.authService.verifyAzureLogin(this.azureEmail, this.serviceId)
             .pipe(first())
             .subscribe({
@@ -108,7 +138,7 @@ export class LoginComponent implements OnInit {
             return backendMessage.message;
         }
 
-        return 'Authentication failed. Please verify your Service ID is registered in the system.';
+        return backendMessage.message+'Authentication failed. Please verify your Service ID is registered in the system.';
     }
 
     signInWithAzure() {
@@ -118,8 +148,26 @@ export class LoginComponent implements OnInit {
         this.msalService.loginRedirect(loginRequest);
     }
 
-    devSignIn() {
-        this.setAzureState('mathukandagesanduni22@gmail.com');
+    developmentLogin() {
+        const serviceId = this.developmentServiceId.trim();
+        if (!serviceId) {
+            this.error = 'Enter a Service ID for development login.';
+            return;
+        }
+
+        this.loading = true;
+        this.error = '';
+
+        this.authService.devLogin(serviceId)
+            .pipe(first())
+            .subscribe({
+                next: () => this.handleLoginSuccess(),
+                error: (error) => {
+                    console.error('Development authentication error:', error);
+                    this.error = this.getLoginErrorMessage(error);
+                    this.loading = false;
+                }
+            });
     }
 
     cancelAzure() {
@@ -132,6 +180,7 @@ export class LoginComponent implements OnInit {
     }
 
     private handleLoginSuccess() {
+        // get return url from route parameters or default to '/'
         const returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/dashboard';
         this.router.navigate([returnUrl]);
     }

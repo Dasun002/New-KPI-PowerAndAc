@@ -1,4 +1,11 @@
+/* File: environment.ts
+   Description: Development environment configuration
+   Purpose: Configures application settings for development builds.
+*/
+
 export const environment = {
+    /* Production mode flag */
     production: false,
-    apiUrl: 'http://localhost:5043/api'
+    /* Backend API endpoint URL */
+  apiUrl: '/api'
 };

@@ -1,15 +1,17 @@
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../../../services/auth.service';
 import { Component, OnDestroy, OnInit, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import * as ExcelJS from 'exceljs';
 import { firstValueFrom, forkJoin, of } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { map } from 'rxjs/operators';
 import { OtnOp1Service, OtnOpKpi, OtnOp1Metric } from '../../../../services/otn-op1.service';
 import { OtnOp2Service, OtnOp2Metric } from '../../../../services/otn-op2.service';
 import { RegionService, Region } from '../../../../services/region.service';
 import { FilterUtils } from '../../../../utils/filter.utils';
-import { buildEngineerDisplayMap, mapRegionRecords } from '../../../../utils/region-display.utils';
+import { buildAreaLabels, buildEngineerDisplayMap, getScopedLeas, mapRegionRecords } from '../../../../utils/region-display.utils';
+import { environment } from '../../../../../environments/environment';
 
 
 
@@ -39,6 +41,13 @@ interface MetricMeta {
 	site?: string;
 	month?: number;
 	year?: number;
+}
+
+interface RtomAreaLookup {
+	areaCode?: string;
+	displayName?: string;
+	AreaCode?: string;
+	DisplayName?: string;
 }
 
 interface OtnOp1Entry extends BaseEntry {
@@ -96,13 +105,16 @@ export class OtnOpComponent implements OnInit, OnDestroy {
 		dropdown1: '',
 		dropdown2: '',
 		dropdown3: '',
-		dropdown4: '',
 	};
 
 	dropdown2Options: string[] = [];
 	dropdown3Options: string[] = [];
-	dropdown4Options: string[] = [];
 	engineerNameMap: Record<string, string> = {};
+
+	// Database-backed area columns and their NW EE header groups.
+	areaKeys: string[] = [];
+	private areaLabels: Record<string, string> = {};
+	areaEngineerGroups: { label: string; areaKeys: string[] }[] = [];
 
 	selectedYear: number = new Date().getFullYear();
 	selectedMonth: number = new Date().getMonth() + 1;
@@ -120,34 +132,15 @@ export class OtnOpComponent implements OnInit, OnDestroy {
 	toasts: Array<{ id: number; type: 'success' | 'danger'; text: string }> = [];
 	private toastId = 1;
 
-	optionMapping: Record<string, string> = {
-		cenhkmd: 'CEN/HK/MD',
-		cenhkmd1: 'CEN/HK/MD',
-		gqkintb: 'GQ / KI / NTB',
-		ndfrm: 'ND / RM',
-		awho: 'AW / HO',
-		konix: 'KON / KX',
-		ngivt: 'NG / WT',
-		kgkly: 'KG / KLY',
-		cwpx: 'CW / PX',
-		debkymt: 'DB / KY / MT',
-		gphtnw: 'GP / HT / NW',
-		adipr: 'AD / PR',
-		bddwmrg: 'BD / BW / MRG',
-		keirn: 'KE / RN',
-		embmbmh: 'EMB / HB / MH',
-		aggl: 'AG / GL',
-		hrktph: 'HR / KT / PH',
-		bcjrdkltc: 'BC / AP / KL / TC',
-		ja: 'JA',
-		komltmbva: 'KO / MLT / MB / VA',
-	};
-
-	private friendlyToDbKey: Record<string, string> = {};
+	private databaseAreaKeyByCode: Record<string, string> = {};
+	private databaseAreaKeysByLabel: Record<string, string[]> = {};
+	private databaseAreaCodeByKey: Record<string, string> = {};
+	private databaseAreaLabelByKey: Record<string, string> = {};
 	private filtersInitialized = false;
 
 	// Injects the required dependencies.
 	constructor(
+		private http: HttpClient,
 		private otnOp1Service: OtnOp1Service,
 		private otnOp2Service: OtnOp2Service,
 		private regionService: RegionService,
@@ -157,8 +150,6 @@ export class OtnOpComponent implements OnInit, OnDestroy {
 	) {}
 
 ngOnInit(): void {
-		this.buildFriendlyMap();
-		
 		// Set default to previous month
 		const prevMonth = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1);
 		this.selectedYear = prevMonth.getFullYear();
@@ -167,7 +158,7 @@ ngOnInit(): void {
 		this.refreshEditPermission();
 		this.loadRegionTable();
 		this.initializeFilters();
-		this.loadData();
+		this.loadRtomAreaLookup();
 
 		this.permissionTimer = setInterval(() => this.refreshEditPermission(), 60000);
 
@@ -186,16 +177,115 @@ ngOnInit(): void {
 		);
 	}
 
-	get selectedKey(): string {
-		return this.formValues.dropdown4 ? this.toCanonicalSiteKey(this.formValues.dropdown4) : '';
+	// Display label for an area key (disambiguated when two keys share a label).
+	areaLabel(areaKey: string): string {
+		return this.areaLabels[areaKey] ?? this.baseAreaLabel(areaKey);
 	}
 
-	get selectedLeaLabel(): string {
-		if (!this.formValues.dropdown4) {
-			return '';
+	get groupedAreaKeys(): string[] {
+		return this.areaEngineerGroups.flatMap((group) => group.areaKeys);
+	}
+
+	private baseAreaLabel(areaKey: string): string {
+		return this.databaseAreaLabelByKey[areaKey] || areaKey.toUpperCase();
+	}
+
+	private resolveDatabaseAreaKey(value: string | null | undefined): string {
+		const normalized = this.norm(value);
+		if (!normalized) return '';
+		const codeKey = this.databaseAreaKeyByCode[normalized];
+		if (codeKey) return codeKey;
+		const labelKeys = this.databaseAreaKeysByLabel[normalized];
+		return labelKeys?.length === 1 ? labelKeys[0] : normalized;
+	}
+
+	private loadRtomAreaLookup(): void {
+		this.http.get<RtomAreaLookup[]>(`${environment.apiUrl}/rtom-areas`).subscribe({
+			next: (areas) => {
+				this.databaseAreaKeyByCode = {};
+				this.databaseAreaKeysByLabel = {};
+				this.databaseAreaCodeByKey = {};
+				this.databaseAreaLabelByKey = {};
+				(areas ?? []).forEach((area) => {
+					const code = (area.areaCode ?? area.AreaCode)?.trim();
+					if (!code) return;
+					const key = this.norm(code);
+					if (!key) return;
+					this.databaseAreaKeyByCode[key] = key;
+					this.databaseAreaCodeByKey[key] = code;
+
+					const label = (area.displayName ?? area.DisplayName)?.trim();
+					if (!label) return;
+					const normalizedLabel = this.norm(label);
+					if (normalizedLabel) {
+						const keys = this.databaseAreaKeysByLabel[normalizedLabel] ?? [];
+						if (!keys.includes(key)) keys.push(key);
+						this.databaseAreaKeysByLabel[normalizedLabel] = keys;
+					}
+					this.databaseAreaLabelByKey[key] = label;
+				});
+
+				if (!areas?.length) {
+					console.error('RTOM area lookup returned no database records.');
+					this.showToast('danger', 'RTOM area lookup is empty; using region LEA codes and stored sites.');
+				}
+				this.loadData();
+			},
+			error: (error) => {
+				console.error('Failed to fetch RTOM area lookup from API:', error);
+				this.showToast('danger', 'RTOM area labels could not be loaded; using region LEA codes.');
+				this.loadData();
+			}
+		});
+	}
+
+	// Rebuild columns and NW EE groups using region data and stored metric sites.
+	private refreshAreaKeys(): void {
+		const { dropdown1, dropdown2, dropdown3 } = this.formValues;
+		const scopedRegions = this.regionTable.filter((region) =>
+			(!dropdown1 || region.region === dropdown1) &&
+			(!dropdown2 || region.province === dropdown2) &&
+			(!dropdown3 || region.networkEngineer === dropdown3)
+		);
+		const labelsByAreaKey = new Map<string, string>();
+		const engineerByAreaKey = new Map<string, string>();
+		this.regionTable.forEach((region) => {
+			const key = this.resolveDatabaseAreaKey(region.lea);
+			if (key && !labelsByAreaKey.has(key)) {
+				labelsByAreaKey.set(key, this.baseAreaLabel(key));
+			}
+		});
+		scopedRegions.forEach((region) => {
+			const key = this.resolveDatabaseAreaKey(region.lea);
+			if (key && !engineerByAreaKey.has(key)) {
+				engineerByAreaKey.set(key, region.networkEngineer?.trim() || 'Unassigned NW EE');
+			}
+		});
+		const keys = new Set(
+			getScopedLeas(this.regionTable, { region: dropdown1, province: dropdown2, engineer: dropdown3 })
+				.map((lea) => this.resolveDatabaseAreaKey(lea))
+				.filter(Boolean)
+		);
+		if (!dropdown1) {
+			this.collectAllAreaKeys().forEach((key) => keys.add(this.resolveDatabaseAreaKey(key)));
 		}
-		const key = this.formValues.dropdown4;
-		return this.optionMapping[key] || key.toUpperCase();
+		const labelOf = (key: string) => labelsByAreaKey.get(key) || this.baseAreaLabel(key);
+		this.areaKeys = Array.from(keys).sort((a, b) => labelOf(a).localeCompare(labelOf(b)));
+		this.areaLabels = buildAreaLabels(this.areaKeys, labelOf);
+
+		const groups = new Map<string, Set<string>>();
+		this.areaKeys.forEach((key) => {
+			const engineer = engineerByAreaKey.get(key) || 'Unassigned NW EE';
+			if (!groups.has(engineer)) groups.set(engineer, new Set<string>());
+			groups.get(engineer)!.add(key);
+		});
+		this.areaEngineerGroups = Array.from(groups.entries())
+			.map(([engineer, areaKeys]) => ({
+				label: this.engineerNameMap[engineer] || engineer,
+				areaKeys: this.areaKeys.filter((key) => areaKeys.has(key))
+			}))
+			.filter((group) => group.areaKeys.length > 0)
+			.sort((a, b) => a.label.localeCompare(b.label));
 	}
 
 	private collectAllAreaKeys(): string[] {
@@ -212,55 +302,44 @@ ngOnInit(): void {
 		return Array.from(areaSet);
 	}
 
-	private getExportAreaKeys(): string[] {
-		return this.selectedKey ? [this.selectedKey] : this.collectAllAreaKeys();
-	}
-
-	private resolveAreaHeader(areaKey: string): string {
-		if (this.selectedKey && areaKey === this.selectedKey && this.selectedLeaLabel) {
-			return this.selectedLeaLabel;
-		}
-		return this.optionMapping[areaKey] || areaKey.toUpperCase();
-	}
-
 	get canEditMetrics(): boolean {
-		return this.isEditingAllowed && !!this.selectedKey;
+		return this.isEditingAllowed;
 	}
 
 	get combinedData(): Array<OtnOp1Entry | OtnOp2Entry> {
 		return [...this.otnOp1Data, ...this.otnOp2Data].sort((a, b) => a.id - b.id);
 	}
 
-	selectedPercentage(entry: OtnOp1Entry | OtnOp2Entry): string {
-		if (!this.selectedKey) {
+	areaPercentage(entry: OtnOp1Entry | OtnOp2Entry, areaKey: string): string {
+		if (!areaKey) {
 			return '';
 		}
 
 		if (entry.formType === 'OtnOp1') {
 			const pct = this.calculatePercentageOtnOp1(
-				(entry as OtnOp1Entry).totalMinutes?.[this.selectedKey],
-				(entry as OtnOp1Entry).unavailableMinutes?.[this.selectedKey],
-				(entry as OtnOp1Entry).totalNodes?.[this.selectedKey],
-				(entry as OtnOp1Entry).metricMeta?.[this.selectedKey]
+				(entry as OtnOp1Entry).totalMinutes?.[areaKey],
+				(entry as OtnOp1Entry).unavailableMinutes?.[areaKey],
+				(entry as OtnOp1Entry).totalNodes?.[areaKey],
+				(entry as OtnOp1Entry).metricMeta?.[areaKey]
 			);
 			return pct === null ? '-' : `${pct.toFixed(2)}%`;
 		}
 
 		const pct = this.calculatePercentageOtnOp2(
-			(entry as OtnOp2Entry).totalFailedLinks?.[this.selectedKey],
-			(entry as OtnOp2Entry).linksSlaNotViolated?.[this.selectedKey]
+			(entry as OtnOp2Entry).totalFailedLinks?.[areaKey],
+			(entry as OtnOp2Entry).linksSlaNotViolated?.[areaKey]
 		);
 		return isNaN(pct) ? '' : `${pct.toFixed(2)}%`;
 	}
 
-	getTotalMinutesDisplay(entry: OtnOp1Entry | OtnOp2Entry): string {
-		if (entry.formType !== 'OtnOp1' || !this.selectedKey) {
+	getTotalMinutesDisplay(entry: OtnOp1Entry | OtnOp2Entry, areaKey: string): string {
+		if (entry.formType !== 'OtnOp1' || !areaKey) {
 			return '';
 		}
 
-		const manual = Number((entry as OtnOp1Entry).totalMinutes?.[this.selectedKey]) || 0;
-		const nodes = Number((entry as OtnOp1Entry).totalNodes?.[this.selectedKey]) || 0;
-		const days = this.getDaysForEntry(entry as OtnOp1Entry, this.selectedKey);
+		const manual = Number((entry as OtnOp1Entry).totalMinutes?.[areaKey]) || 0;
+		const nodes = Number((entry as OtnOp1Entry).totalNodes?.[areaKey]) || 0;
+		const days = this.getDaysForEntry(entry as OtnOp1Entry, areaKey);
 		const computed = 24 * 60 * days * nodes;
 		const value = manual || computed;
 		return value ? String(value) : '';
@@ -268,24 +347,26 @@ ngOnInit(): void {
 
 	getOtnOp1Value(
 		entry: OtnOp1Entry | OtnOp2Entry,
-		field: 'unavailableMinutes' | 'totalNodes'
+		field: 'unavailableMinutes' | 'totalNodes',
+		areaKey: string
 	): string {
-		if (entry.formType !== 'OtnOp1' || !this.selectedKey) {
+		if (entry.formType !== 'OtnOp1' || !areaKey) {
 			return '';
 		}
 		const payload = (entry as OtnOp1Entry)[field] || {};
-		return payload[this.selectedKey] ?? '';
+		return payload[areaKey] ?? '';
 	}
 
 	getOtnOp2Value(
 		entry: OtnOp1Entry | OtnOp2Entry,
-		field: 'totalFailedLinks' | 'linksSlaNotViolated'
+		field: 'totalFailedLinks' | 'linksSlaNotViolated',
+		areaKey: string
 	): string {
-		if (entry.formType !== 'OtnOp2' || !this.selectedKey) {
+		if (entry.formType !== 'OtnOp2' || !areaKey) {
 			return '';
 		}
 		const payload = (entry as OtnOp2Entry)[field] || {};
-		return payload[this.selectedKey] ?? '';
+		return payload[areaKey] ?? '';
 	}
 
 	private norm(value: string | null | undefined): string {
@@ -301,23 +382,6 @@ ngOnInit(): void {
 		const year = meta?.year ?? this.selectedYear;
 		const month = meta?.month ?? this.selectedMonth;
 		return this.getDaysInMonth(year, month);
-	}
-
-	private toCanonicalSiteKey(value: string | null | undefined): string {
-		const normalized = this.norm(value);
-		if (!normalized) {
-			return '';
-		}
-		return this.friendlyToDbKey[normalized] || normalized;
-	}
-
-	private buildFriendlyMap(): void {
-		const out: Record<string, string> = {};
-		Object.keys(this.optionMapping).forEach((dbKey) => {
-			out[this.norm(this.optionMapping[dbKey])] = dbKey;
-			out[this.norm(dbKey)] = dbKey;
-		});
-		this.friendlyToDbKey = out;
 	}
 
 	private showToast(type: 'success' | 'danger', text: string): void {
@@ -357,13 +421,16 @@ ngOnInit(): void {
 		this.regionService.getAll().subscribe({
 			next: (res: Region[] | any[]) => {
 				this.regionTable = mapRegionRecords(res) as RegionRow[];
+				this.engineerNameMap = buildEngineerDisplayMap(this.regionTable);
 				this.initializeFilters();
+				this.refreshAreaKeys();
 			},
 			error: (err) => {
 				console.error('Failed to fetch region table:', err);
 				this.regionTable = [];
 				this.showToast('danger', 'Failed to load region data. Filters are unavailable until regiondata is reachable.');
 				this.initializeFilters();
+				this.refreshAreaKeys();
 			},
 		});
 	}
@@ -388,13 +455,7 @@ ngOnInit(): void {
 							otnOp1Kpis.map((kpi) =>
 								this.otnOp1Service
 									.getMetrics(kpi.id, this.selectedYear, this.selectedMonth)
-									.pipe(
-										catchError((err) => {
-											console.warn('Failed to fetch OtnOp1 metrics for id:', kpi.id, err);
-											return of([]);
-										}),
-										map((metrics) => ({ kpiId: kpi.id, metrics }))
-									)
+									.pipe(map((metrics) => ({ kpiId: kpi.id, metrics })))
 							)
 						)
 					: of([]);
@@ -404,13 +465,7 @@ ngOnInit(): void {
 							otnOp2Kpis.map((kpi) =>
 								this.otnOp2Service
 									.getMetrics(kpi.id, this.selectedYear, this.selectedMonth)
-									.pipe(
-										catchError((err) => {
-											console.warn('Failed to fetch OtnOp2 metrics for id:', kpi.id, err);
-											return of([]);
-										}),
-										map((metrics) => ({ kpiId: kpi.id, metrics }))
-									)
+									.pipe(map((metrics) => ({ kpiId: kpi.id, metrics })))
 							)
 						)
 					: of([]);
@@ -434,6 +489,7 @@ ngOnInit(): void {
 
 							this.otnOp1Data = this.transformOtnOp1Records(otnOp1Kpis, op1MetricMap);
 							this.otnOp2Data = this.transformOtnOp2Records(otnOp2Kpis, op2MetricMap);
+							this.refreshAreaKeys();
 							this.loading = false;
 							this.cdr.detectChanges();
 						} catch (mappingError) {
@@ -491,7 +547,7 @@ ngOnInit(): void {
 		if (Array.isArray(metrics)) {
 			console.log(`OtnOp1 KPI ${record.id} metrics:`, metrics);
 			metrics.forEach((metric: any) => {
-				const siteKey = this.toCanonicalSiteKey(metric.site);
+				const siteKey = this.resolveDatabaseAreaKey(metric.site);
 				if (siteKey) {
 					totalMinutes[siteKey] = metric.totalMinutes ?? 0;
 					unavailableMinutes[siteKey] = metric.unavailableMinutes ?? 0;
@@ -531,7 +587,7 @@ ngOnInit(): void {
 		if (Array.isArray(metrics)) {
 			console.log(`OtnOp2 KPI ${record.id} metrics:`, metrics);
 			metrics.forEach((metric: any) => {
-				const siteKey = this.toCanonicalSiteKey(metric.site);
+				const siteKey = this.resolveDatabaseAreaKey(metric.site);
 				if (siteKey) {
 					totalFailedLinks[siteKey] = metric.totalFailedLinks ?? 0;
 					linksSlaNotViolated[siteKey] = metric.linksSlaNotViolated ?? 0;
@@ -745,33 +801,13 @@ ngOnInit(): void {
 		this.engineerNameMap = buildEngineerDisplayMap(this.regionTable, this.dropdown3Options);
 	}
 
-	private updateDropdown4Options(engineer: string): void {
-		if (!engineer || !this.formValues.dropdown1 || !this.formValues.dropdown2) {
-			this.dropdown4Options = [];
-			return;
-		}
-
-		const leas = this.regionTable
-			.filter(
-				(row) =>
-					row.region === this.formValues.dropdown1 &&
-					row.province === this.formValues.dropdown2 &&
-					row.networkEngineer === engineer
-			)
-			.map((row) => this.toCanonicalSiteKey(row.lea))
-			.filter(Boolean);
-
-		this.dropdown4Options = Array.from(new Set(leas));
-	}
-
 	private initializeFilters(): void {
 		if (this.filtersInitialized) return;
-		
+
 		this.formValues.dropdown1 = '';
 		this.formValues.dropdown2 = '';
 		this.formValues.dropdown3 = '';
-		this.formValues.dropdown4 = '';
-		
+
 		this.filtersInitialized = true;
 	}
 
@@ -782,42 +818,24 @@ ngOnInit(): void {
 
 
 	onDropdownChange(
-		name: 'dropdown1' | 'dropdown2' | 'dropdown3' | 'dropdown4',
+		name: 'dropdown1' | 'dropdown2' | 'dropdown3',
 		value: string
 	): void {
 		if (name === 'dropdown1') {
 			this.formValues.dropdown1 = value;
 			this.formValues.dropdown2 = '';
 			this.formValues.dropdown3 = '';
-			this.formValues.dropdown4 = '';
 			this.updateDropdown2Options(value);
 			this.dropdown3Options = [];
-			this.dropdown4Options = [];
-			this.cancelEdit();
-			return;
-		}
-
-		if (name === 'dropdown2') {
+		} else if (name === 'dropdown2') {
 			this.formValues.dropdown2 = value;
 			this.formValues.dropdown3 = '';
-			this.formValues.dropdown4 = '';
 			this.updateDropdown3Options(value);
-			this.dropdown4Options = [];
-			this.cancelEdit();
-			return;
-		}
-
-		if (name === 'dropdown3') {
+		} else {
 			this.formValues.dropdown3 = value;
-			this.formValues.dropdown4 = '';
-			this.updateDropdown4Options(value);
-			this.cancelEdit();
-			return;
 		}
-
-	this.formValues.dropdown4 = value;
-	this.cancelEdit();
-
+		this.refreshAreaKeys();
+		this.cancelEdit();
 	}
 
 	calculatePercentageOtnOp1(
@@ -857,17 +875,18 @@ ngOnInit(): void {
 			| 'unavailableMinutes'
 			| 'totalNodes'
 			| 'totalFailedLinks'
-			| 'linksSlaNotViolated'
+			| 'linksSlaNotViolated',
+		areaKey: string
 	): void {
-		if (!this.canEditMetrics || this.saving || !this.selectedKey) {
+		if (!this.canEditMetrics || this.saving || !areaKey) {
 			return;
 		}
 
-		const value = (entry as any)[parentKey]?.[this.selectedKey] ?? '';
+		const value = (entry as any)[parentKey]?.[areaKey] ?? '';
 		this.editCell = {
 			rowId: entry.id,
 			parentKey,
-			childKey: this.selectedKey,
+			childKey: areaKey,
 			value: value === undefined || value === null ? '' : String(value),
 			formType: entry.formType,
 		};
@@ -962,11 +981,11 @@ ngOnInit(): void {
 		};
 	}
 
-	isEditing(rowId: number, parentKey: string): boolean {
+	isEditing(rowId: number, parentKey: string, areaKey: string): boolean {
 		return (
 			this.editCell.rowId === rowId &&
 			this.editCell.parentKey === parentKey &&
-			this.editCell.childKey === this.selectedKey
+			this.editCell.childKey === areaKey
 		);
 	}
 
@@ -1032,11 +1051,7 @@ ngOnInit(): void {
 		if (meta?.site) {
 			return meta.site;
 		}
-		const friendly = this.optionMapping[siteKey];
-		if (friendly) {
-			return friendly.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-		}
-		return siteKey.toUpperCase();
+		return this.databaseAreaCodeByKey[siteKey] ?? siteKey.toUpperCase();
 	}
 
 	async exportToExcel(): Promise<void> {
@@ -1047,7 +1062,7 @@ ngOnInit(): void {
 		worksheet.addRow([`Generated Date: ${new Date().toISOString().split('T')[0]}`]);
 		worksheet.addRow([]);
 
-		const areas = this.getExportAreaKeys();
+		const areas = this.groupedAreaKeys;
 
 		const headers = [
 			'ID',
@@ -1055,7 +1070,10 @@ ngOnInit(): void {
 			'Division',
 			'Section',
 			'KPI Percent',
-			...areas.map((area) => this.resolveAreaHeader(area)),
+			...areas.map((area) => {
+				const engineer = this.areaEngineerGroups.find((group) => group.areaKeys.includes(area))?.label;
+				return engineer ? `${engineer} - ${this.areaLabel(area)}` : this.areaLabel(area);
+			}),
 		];
 
 		const headerRow = worksheet.addRow(headers);

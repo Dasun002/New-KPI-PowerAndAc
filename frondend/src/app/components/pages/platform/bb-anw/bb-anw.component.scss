@@ -32,11 +32,43 @@
 }
 
 .header-info {
-	flex: 1;
+	flex: 0 1 400px;
 	min-width: 260px;
 	display: flex;
 	flex-direction: column;
 	gap: 0.5rem;
+}
+
+.bb-anw-filters {
+	flex: 1 1 760px;
+	min-width: 0;
+	margin: 0;
+	padding: 12px 20px;
+}
+
+@media (max-width: 1399px) {
+	.header-info {
+		flex: 1 1 320px;
+	}
+
+	.bb-anw-filters {
+		order: 3;
+		flex: 1 1 100%;
+	}
+
+	.header-actions {
+		order: 2;
+	}
+}
+
+@media (max-width: 575px) {
+	.header-info {
+		min-width: 0;
+	}
+
+	.bb-anw-filters {
+		padding: 14px;
+	}
 }
 
 .header-actions {

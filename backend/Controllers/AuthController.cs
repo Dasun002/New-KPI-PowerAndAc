@@ -25,10 +25,13 @@ namespace backend.Controllers
         // Configuration provider used to read JWT settings
         private readonly IConfiguration _configuration;
 
-        public AuthController(AppDbContext context, IConfiguration configuration)
+        private readonly IWebHostEnvironment _environment;
+
+        public AuthController(AppDbContext context, IConfiguration configuration, IWebHostEnvironment environment)
         {
             _context = context;
             _configuration = configuration;
+            _environment = environment;
         }
 
         // =========================================================
@@ -65,6 +68,34 @@ namespace backend.Controllers
                 return Unauthorized("Your account has been deactivated. Please contact your administrator.");
 
             // Generate token and return login response
+            return await GenerateLoginResponse(user);
+        }
+
+        // POST: /api/auth/dev-login
+        [HttpPost("dev-login")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DevelopmentLogin([FromBody] DevelopmentLoginDto dto)
+        {
+            if (!_environment.IsDevelopment())
+                return NotFound();
+
+            if (!_configuration.GetValue<bool>("DevAuth:Enabled"))
+                return NotFound();
+
+            var serviceId = dto.ServiceId?.Trim();
+            if (string.IsNullOrWhiteSpace(serviceId))
+                return BadRequest("Service ID is required for development authentication.");
+
+            var user = await _context.Users
+                .Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.ServiceId.Trim() == serviceId);
+
+            if (user == null)
+                return Unauthorized("Service ID was not found in the system.");
+
+            if (!user.IsActive)
+                return Unauthorized("This account is inactive.");
+
             return await GenerateLoginResponse(user);
         }
 
@@ -189,6 +220,7 @@ namespace backend.Controllers
                 "enterprisekpi" => (byte)8,
                 "otheroperatorkpi" => (byte)9,
                 "otherkpi" => (byte)10,
+                "powerac" => (byte)11,
                 _ => null
             };
         }
@@ -207,6 +239,11 @@ namespace backend.Controllers
     public class LoginDto
     {
         public string ServiceId { get; set; }
+    }
+
+    public class DevelopmentLoginDto
+    {
+        public string ServiceId { get; set; } = string.Empty;
     }
 
     // DTO used for Azure authentication verification

@@ -1,32 +1,24 @@
 <div class="page-container">
   <div class="page-header d-flex flex-wrap align-items-start justify-content-between gap-3">
-    <div>
+    <div class="page-heading">
       <h1>{{ pageTitle }}</h1>
       <p class="page-subtitle">Telemetry and O&amp;M Power &amp; Air Conditioning KPI metrics</p>
     </div>
-  </div>
-
-  <!-- ═══════════════════════════════════════════════════
-       TABLE 1 — TELEMETRY
-  ═══════════════════════════════════════════════════ -->
-  <div class="mt-4">
-
-    <!-- Filter bar — same style as Aged Network Failures -->
-    <form (submit)="$event.preventDefault()" class="filters-form mb-4">
-      <div class="row g-3">
-        <div class="col-md-3">
+    <form (submit)="$event.preventDefault()" class="filters-form other-kpi-filters">
+      <div class="row g-2">
+        <div class="col-6 col-xl">
           <label class="form-label">Month:</label>
           <select class="form-select" [(ngModel)]="telMonth" name="telMonth" (change)="onMonthYearChange()">
             <option *ngFor="let m of monthOptions" [value]="m.value">{{ m.label }}</option>
           </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-6 col-xl">
           <label class="form-label">Year:</label>
           <select class="form-select" [(ngModel)]="telYear" name="telYear" (change)="onMonthYearChange()">
             <option *ngFor="let y of yearOptions" [value]="y">{{ y }}</option>
           </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-6 col-xl">
           <label class="form-label">R-GM:</label>
           <select class="form-select" [(ngModel)]="telRegion" name="telRegion" (change)="onRegionChange()">
             <option value="">All</option>
@@ -35,6 +27,12 @@
         </div>
       </div>
     </form>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       TABLE 1 — TELEMETRY
+  ═══════════════════════════════════════════════════ -->
+  <div class="mt-4">
 
     <div class="selected-filters mb-4">
       <div class="filter-chip">

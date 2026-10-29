@@ -23,9 +23,6 @@ out/
 ####################################################
 
 # Local configuration files (DO NOT COMMIT)
-appsettings.json
-appsettings.Development.json
-appsettings.Production.json
 secrets.json
 
 # IIS / Kestrel logs

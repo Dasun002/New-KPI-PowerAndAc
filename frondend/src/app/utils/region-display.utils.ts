@@ -74,6 +74,32 @@ export function mapRegionRecords(items: any[] | null | undefined): RegionLookupR
     .filter((row) => Boolean(row.region || row.province || row.networkEngineer || row.lea));
 }
 
+// Return the distinct LEA codes covered by an R-GM / P-DGM / NW EE selection; blank levels match everything.
+export function getScopedLeas(
+  rows: RegionLookupRow[],
+  scope: { region?: string; province?: string; engineer?: string }
+): string[] {
+  const leas = rows
+    .filter((row) =>
+      (!scope.region || row.region === scope.region) &&
+      (!scope.province || row.province === scope.province) &&
+      (!scope.engineer || row.networkEngineer === scope.engineer))
+    .map((row) => String(row.lea ?? '').trim())
+    .filter(Boolean);
+  return Array.from(new Set(leas));
+}
+
+// Map each area key to its display label, appending the raw key when two keys share a label.
+export function buildAreaLabels(keys: string[], labelOf: (key: string) => string): Record<string, string> {
+  const counts = new Map<string, number>();
+  keys.forEach((key) => counts.set(labelOf(key), (counts.get(labelOf(key)) ?? 0) + 1));
+  return keys.reduce((acc, key) => {
+    const label = labelOf(key);
+    acc[key] = (counts.get(label) ?? 0) > 1 ? `${label} (${key.toUpperCase()})` : label;
+    return acc;
+  }, {} as Record<string, string>);
+}
+
 export function buildEngineerDisplayMap(
   rows: RegionLookupRow[],
   engineers?: string[]

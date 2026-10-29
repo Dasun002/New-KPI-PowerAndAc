@@ -72,6 +72,14 @@ export class AuthService {
       );
   }
 
+  devLogin(serviceId: string): Observable<User> {
+    return this.http.post<LoginResponse>(`${this.apiUrl}/dev-login`, { serviceId })
+      .pipe(
+        map(res => this.mapLoginResponse(res)),
+        tap(user => this.handleAuthSuccess(user))
+      );
+  }
+
  
 
   /* Map login response from multiple naming conventions to User object */

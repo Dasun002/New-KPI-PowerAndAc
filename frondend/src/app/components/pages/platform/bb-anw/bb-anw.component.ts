@@ -6,15 +6,17 @@
 */
 
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../../services/auth.service';
 import { BbAnwDto, BbAnwService } from '../../../../services/bb-anw.service';
 import { Region, RegionService } from '../../../../services/region.service';
 import { FilterUtils } from '../../../../utils/filter.utils';
-import { buildEngineerDisplayMap, mapRegionRecords } from '../../../../utils/region-display.utils';
+import { buildAreaLabels, buildEngineerDisplayMap, getScopedLeas, mapRegionRecords } from '../../../../utils/region-display.utils';
 import * as ExcelJS from 'exceljs';
 import { firstValueFrom } from 'rxjs';
+import { environment } from '../../../../../environments/environment';
 
 /* ========== DATA TYPES ========== */
 
@@ -46,12 +48,20 @@ interface BbAnwEntry {
 	unavailableMinutes: Dict<number | null>;
 	totalNodes: Dict<number | null>;
 	nodeMeta: Dict<NodeMeta>;
+	nodeCodes: Dict<string>;
 }
 
 interface EditCellState {
 	rowId: number | null;
 	key: string | null;
 	value: string;
+}
+
+interface RtomAreaLookup {
+	areaCode?: string;
+	displayName?: string;
+	AreaCode?: string;
+	DisplayName?: string;
 }
 
 @Component({
@@ -83,13 +93,16 @@ export class BbAnwComponent implements OnInit, OnDestroy {
 		dropdown1: '',
 		dropdown2: '',
 		dropdown3: '',
-		dropdown4: '',
 	};
 
 	dropdown2Options: string[] = [];
 	dropdown3Options: string[] = [];
-	dropdown4Options: string[] = [];
 	engineerNameMap: Record<string, string> = {};
+
+	// Database-backed area columns and their NW EE header groups.
+	areaKeys: string[] = [];
+	private areaLabels: Record<string, string> = {};
+	areaEngineerGroups: { label: string; areaKeys: string[] }[] = [];
 
 	selectedYear: number = new Date().getFullYear();
 	selectedMonth: number = new Date().getMonth() + 1;
@@ -105,40 +118,21 @@ export class BbAnwComponent implements OnInit, OnDestroy {
 	toasts: Array<{ id: number; type: 'success' | 'danger'; text: string }> = [];
 	private toastId = 1;
 
-	optionMapping: Record<string, string> = {
-		cenhkmd: 'CEN/HK/MD',
-		cenhkmd1: 'CEN/HK/MD',
-		gqkintb: 'GQ / KI / NTB',
-		ndfrm: 'ND / RM',
-		awho: 'AW / HO',
-		konix: 'KON / KX',
-		ngivt: 'NG / WT',
-		kgkly: 'KG / KLY',
-		cwpx: 'CW / PX',
-		debkymt: 'DB / KY / MT',
-		gphtnw: 'GP / HT / NW',
-		adipr: 'AD / PR',
-		bddwmrg: 'BD / BW / MRG',
-		keirn: 'KE / RN',
-		embmbmh: 'EMB / HB / MH',
-		aggl: 'AG / GL',
-		hrktph: 'HR / KT / PH',
-		bcjrdkltc: 'BC / AP / KL / TC',
-		ja: 'JA',
-		komltmbva: 'KO / MLT / MB / VA',
-	};
-
 	private metricLabelMap: Record<MetricKey, string> = {
 		unavailableMinutes: 'Unavailable minutes',
 		totalMinutes: 'Total minutes',
 		totalNodes: 'Total nodes',
 	};
 
-	private friendlyToDbKey: Record<string, string> = {};
+	private databaseAreaKeyByCode: Record<string, string> = {};
+	private databaseAreaKeysByLabel: Record<string, string[]> = {};
+	private databaseAreaCodeByKey: Record<string, string> = {};
+	private databaseAreaLabelByKey: Record<string, string> = {};
 	private filtersInitialized = false;
 
 	// Injects the required dependencies.
 	constructor(
+		private http: HttpClient,
 		private regionService: RegionService,
 		private bbAnwService: BbAnwService,
 		private authService: AuthService,
@@ -147,10 +141,10 @@ export class BbAnwComponent implements OnInit, OnDestroy {
 
 
 	ngOnInit(): void {
-		this.buildFriendlyMap();
 		this.initializePeriodDefaults();
 		this.refreshEditPermission();
 		this.loadRegionTable();
+		this.loadRtomAreaLookup();
 		this.initializeFilters();
 		this.loadData();
 
@@ -172,16 +166,17 @@ export class BbAnwComponent implements OnInit, OnDestroy {
 		return Array.from(new Set(this.regionTable.map((row) => row.region).filter(Boolean) as string[]));
 	}
 
-	// Gets the normalized selected area key.
-	get selectedKey(): string {
-		return this.formValues.dropdown4 ? this.norm(this.formValues.dropdown4) : '';
+	// Gets the display label for an area key (disambiguated when two keys share a label).
+	areaLabel(key: string): string {
+		return this.areaLabels[key] ?? this.baseAreaLabel(key);
 	}
 
-	// Gets the label for the selected area.
-	get selectedAreaLabel(): string | null {
-		const key = this.selectedKey;
-		if (!key) return null;
-		return this.optionMapping[key] ?? key.toUpperCase();
+	get groupedAreaKeys(): string[] {
+		return this.areaEngineerGroups.flatMap((group) => group.areaKeys);
+	}
+
+	private baseAreaLabel(key: string): string {
+		return this.databaseAreaLabelByKey[key] ?? key.toUpperCase();
 	}
 
 	// Gets the label for the selected month.
@@ -189,14 +184,8 @@ export class BbAnwComponent implements OnInit, OnDestroy {
 		return this.monthOptions.find((month) => month.value === this.selectedMonth)?.label ?? 'Month';
 	}
 
-	// Checks if area metrics should be shown.
-	get showAreaMetrics(): boolean {
-		return Boolean(this.selectedKey);
-	}
-
-	// Calculates and returns the selected area's availability percentage.
-	getSelectedAvailability(entry: BbAnwEntry): string {
-		const key = this.selectedKey;
+	// Calculates and returns an area's availability percentage.
+	getAreaAvailability(entry: BbAnwEntry, key: string): string {
 		if (!key) return '--';
 
 		const unavailable = entry.unavailableMinutes?.[key];
@@ -210,9 +199,8 @@ export class BbAnwComponent implements OnInit, OnDestroy {
 		return pct === null ? '-' : `${pct.toFixed(2)}%`;
 	}
 
-	// Gets the display string for a specific metric.
-	getMetricDisplay(entry: BbAnwEntry, metric: MetricKey): string {
-		const key = this.selectedKey;
+	// Gets the display string for a specific metric in an area.
+	getMetricDisplay(entry: BbAnwEntry, metric: MetricKey, key: string): string {
 		if (!key) return '--';
 		const source = (entry as any)[metric] ?? {};
 		const rawValue = source[key];
@@ -225,21 +213,118 @@ export class BbAnwComponent implements OnInit, OnDestroy {
 		return value ? value.replace(/[^A-Za-z0-9]/g, '').toLowerCase() : '';
 	}
 
-	// Checks if the entry has any data for the given area key.
-	private hasAreaData(entry: BbAnwEntry, key: string): boolean {
-		return [entry.unavailableMinutes, entry.totalMinutes, entry.totalNodes].some(
-			(pool) => pool && pool[key] !== undefined && pool[key] !== null
-		);
+	private resolveAreaKeys(value: string | null | undefined): string[] {
+		const normalized = this.norm(value);
+		if (!normalized) return [];
+		const codeKey = this.databaseAreaKeyByCode[normalized];
+		if (codeKey) return [codeKey];
+		return this.databaseAreaKeysByLabel[normalized] ?? [normalized];
 	}
 
-	// Builds a mapping from friendly names to database keys.
-	private buildFriendlyMap(): void {
-		const out: Record<string, string> = {};
-		Object.keys(this.optionMapping).forEach((dbKey) => {
-			out[this.norm(this.optionMapping[dbKey])] = dbKey;
-			out[this.norm(dbKey)] = dbKey;
+	private resolveMetricAreaKey(value: string | null | undefined): string {
+		const normalized = this.norm(value);
+		if (!normalized) return '';
+		const codeKey = this.databaseAreaKeyByCode[normalized];
+		if (codeKey) return codeKey;
+		const labelKeys = this.databaseAreaKeysByLabel[normalized];
+		return labelKeys?.length === 1 ? labelKeys[0] : normalized;
+	}
+
+	private loadRtomAreaLookup(): void {
+		this.http.get<RtomAreaLookup[]>(`${environment.apiUrl}/rtom-areas`).subscribe({
+			next: (areas) => {
+				this.databaseAreaKeyByCode = {};
+				this.databaseAreaKeysByLabel = {};
+				this.databaseAreaCodeByKey = {};
+				this.databaseAreaLabelByKey = {};
+
+				(areas ?? []).forEach((area) => {
+					const code = (area.areaCode ?? area.AreaCode)?.trim();
+					if (!code) return;
+					const key = this.norm(code);
+					if (!key) return;
+					this.databaseAreaKeyByCode[key] = key;
+					this.databaseAreaCodeByKey[key] = code;
+
+					const label = (area.displayName ?? area.DisplayName)?.trim();
+					if (label) {
+						const normalizedLabel = this.norm(label);
+						if (normalizedLabel) {
+							const aliases = this.databaseAreaKeysByLabel[normalizedLabel] ?? [];
+							if (!aliases.includes(key)) aliases.push(key);
+							this.databaseAreaKeysByLabel[normalizedLabel] = aliases;
+						}
+						this.databaseAreaLabelByKey[key] = label;
+					}
+				});
+
+				if (!areas?.length) {
+					console.error('RTOM area lookup returned no database records.');
+					this.showToast('danger', 'RTOM area lookup is empty; using region LEA codes and stored NodeCodes.');
+				}
+				if (this.adminRows.length) {
+					this.allEntries = this.adminRows.map((row, index) => this.mapDtoToEntry(row, index + 1));
+					this.applyPeriodFilter();
+				}
+				this.refreshAreaKeys();
+			},
+			error: (error) => {
+				console.error('Failed to fetch RTOM area lookup from API:', error);
+				this.showToast('danger', 'RTOM area labels could not be loaded; using region LEA codes.');
+				this.refreshAreaKeys();
+			}
 		});
-		this.friendlyToDbKey = out;
+	}
+
+	// Rebuild columns and NW EE groups using region data and stored NodeCodes.
+	private refreshAreaKeys(): void {
+		const { dropdown1, dropdown2, dropdown3 } = this.formValues;
+		const scopedRegions = this.regionTable.filter((region) =>
+			(!dropdown1 || region.region === dropdown1) &&
+			(!dropdown2 || region.province === dropdown2) &&
+			(!dropdown3 || region.networkEngineer === dropdown3)
+		);
+		const labelsByAreaKey = new Map<string, string>();
+		this.regionTable.forEach((region) => {
+			this.resolveAreaKeys(region.lea).forEach((key) => {
+				if (key && !labelsByAreaKey.has(key)) {
+					labelsByAreaKey.set(key, this.databaseAreaLabelByKey[key] || region.lea?.trim() || key);
+				}
+			});
+		});
+		const keys = new Set(
+			getScopedLeas(this.regionTable, { region: dropdown1, province: dropdown2, engineer: dropdown3 })
+				.flatMap((lea) => this.resolveAreaKeys(lea))
+				.filter(Boolean)
+		);
+		if (!dropdown1) {
+			this.data.forEach((entry) => this.collectNodeCodes(entry).forEach((code) => keys.add(code)));
+		}
+		const labelOf = (key: string) => labelsByAreaKey.get(key) || this.baseAreaLabel(key);
+		this.areaKeys = Array.from(keys).sort((a, b) => labelOf(a).localeCompare(labelOf(b)));
+		this.areaLabels = buildAreaLabels(this.areaKeys, labelOf);
+
+		const groups = new Map<string, Set<string>>();
+		const assignedAreaKeys = new Set<string>();
+		scopedRegions.forEach((region) => {
+			const engineer = region.networkEngineer?.trim() || 'Unassigned NW EE';
+			this.resolveAreaKeys(region.lea).forEach((key) => {
+				if (!keys.has(key) || assignedAreaKeys.has(key)) return;
+				if (!groups.has(engineer)) groups.set(engineer, new Set<string>());
+				groups.get(engineer)!.add(key);
+				assignedAreaKeys.add(key);
+			});
+		});
+		const groupedKeys = new Set(Array.from(groups.values()).flatMap((areaKeys) => Array.from(areaKeys)));
+		const unassignedKeys = this.areaKeys.filter((key) => !groupedKeys.has(key));
+		if (unassignedKeys.length) groups.set('Unassigned NW EE', new Set(unassignedKeys));
+		this.areaEngineerGroups = Array.from(groups.entries())
+			.map(([engineer, areaKeys]) => ({
+				label: this.engineerNameMap[engineer] || engineer,
+				areaKeys: this.areaKeys.filter((key) => areaKeys.has(key))
+			}))
+			.filter((group) => group.areaKeys.length > 0)
+			.sort((a, b) => a.label.localeCompare(b.label));
 	}
 
 	// Displays a toast notification.
@@ -279,6 +364,7 @@ export class BbAnwComponent implements OnInit, OnDestroy {
 		this.regionService.getAll().subscribe({
 			next: (res: Region[] | any[]) => {
 				this.regionTable = mapRegionRecords(res) as RegionRow[];
+				this.engineerNameMap = buildEngineerDisplayMap(this.regionTable);
 				this.initializeFilters();
 			},
 			error: (err) => {
@@ -328,13 +414,15 @@ export class BbAnwComponent implements OnInit, OnDestroy {
 			unavailableMinutes: {},
 			totalNodes: {},
 			nodeMeta: {},
+			nodeCodes: {},
 		};
 
 		(dto.nodes ?? []).forEach((node) => {
-			const code = this.norm(node.nodeCode);
+			const code = this.resolveMetricAreaKey(node.nodeCode);
 			if (!code) return;
 			const meta = this.normalizeNodeMeta(node?.month, node?.year);
 			if (meta.month !== this.selectedMonth || meta.year !== this.selectedYear) return;
+			entry.nodeCodes[code] = node.nodeCode;
 			entry.unavailableMinutes[code] = node.unavailableMinutes ?? null;
 			entry.totalMinutes[code] = node.totalMinutes ?? null;
 			entry.totalNodes[code] = node.totalNodes ?? null;
@@ -351,7 +439,7 @@ export class BbAnwComponent implements OnInit, OnDestroy {
 			.map((code) => {
 				const meta = this.ensureNodeMeta(entry, code);
 				return {
-					nodeCode: code,
+					nodeCode: entry.nodeCodes[code] ?? this.databaseAreaCodeByKey[code] ?? code,
 					unavailableMinutes: this.toNullableNumber(entry.unavailableMinutes[code]),
 					totalMinutes: this.toNullableNumber(entry.totalMinutes[code]),
 					totalNodes: this.toNullableNumber(entry.totalNodes[code]),
@@ -450,35 +538,13 @@ private updateDropdown3Options(province: string): void {
 		this.engineerNameMap = buildEngineerDisplayMap(this.regionTable, this.dropdown3Options);
 	}
 
-	// Updates the LEA dropdown options based on the selected engineer.
-	private updateDropdown4Options(engineer: string): void {
-		if (!engineer || !this.formValues.dropdown1 || !this.formValues.dropdown2) {
-			this.dropdown4Options = [];
-			return;
-		}
-		const leas = this.regionTable
-			.filter(
-				(row) =>
-					row.region === this.formValues.dropdown1 &&
-					row.province === this.formValues.dropdown2 &&
-					row.networkEngineer === engineer
-			)
-			.map((row) => {
-				const normalized = this.norm(row.lea);
-				return this.friendlyToDbKey[normalized] || normalized;
-			})
-			.filter(Boolean);
-
-		this.dropdown4Options = Array.from(new Set(leas));
-	}
-
 	// Initializes all filter dropdowns.
 	private initializeFilters(): void {
-		this.formValues = { dropdown1: '', dropdown2: '', dropdown3: '', dropdown4: '' };
+		this.formValues = { dropdown1: '', dropdown2: '', dropdown3: '' };
 		this.dropdown2Options = [];
 		this.dropdown3Options = [];
-		this.dropdown4Options = [];
 		this.filtersInitialized = true;
+		this.refreshAreaKeys();
 	}
 
 	// Initializes default selected month and year to the previous month.
@@ -495,12 +561,14 @@ private updateDropdown3Options(province: string): void {
 	private applyPeriodFilter(): void {
 		if (!this.allEntries.length) {
 			this.data = [];
+			this.refreshAreaKeys();
 			return;
 		}
 
 		const month = this.selectedMonth;
 		const year = this.selectedYear;
 		this.data = this.allEntries.map((entry) => this.createPeriodScopedEntry(entry, month, year));
+		this.refreshAreaKeys();
 	}
 
 	// Creates a new entry scoped to the specified period.
@@ -509,6 +577,7 @@ private updateDropdown3Options(province: string): void {
 		const filteredTotal: Dict<number | null> = {};
 		const filteredNodes: Dict<number | null> = {};
 		const filteredMeta: Dict<NodeMeta> = {};
+		const filteredCodes: Dict<string> = {};
 		const codes = this.collectNodeCodes(entry);
 
 		codes.forEach((code) => {
@@ -520,11 +589,13 @@ private updateDropdown3Options(province: string): void {
 				filteredTotal[code] = entry.totalMinutes?.[code] ?? null;
 				filteredNodes[code] = entry.totalNodes?.[code] ?? null;
 				filteredMeta[code] = normalized;
+				filteredCodes[code] = entry.nodeCodes?.[code] ?? this.databaseAreaCodeByKey[code] ?? code;
 			} else {
 				filteredUnavailable[code] = null;
 				filteredTotal[code] = null;
 				filteredNodes[code] = null;
 				filteredMeta[code] = { month, year };
+				filteredCodes[code] = entry.nodeCodes?.[code] ?? this.databaseAreaCodeByKey[code] ?? code;
 			}
 		});
 
@@ -534,40 +605,27 @@ private updateDropdown3Options(province: string): void {
 			totalMinutes: filteredTotal,
 			totalNodes: filteredNodes,
 			nodeMeta: filteredMeta,
+			nodeCodes: filteredCodes,
 		};
 	}
 
 	// Handles changes to any of the dropdown filters.
-	onDropdownChange(name: 'dropdown1' | 'dropdown2' | 'dropdown3' | 'dropdown4', value: string): void {
+	onDropdownChange(name: 'dropdown1' | 'dropdown2' | 'dropdown3', value: string): void {
 
 		if (name === 'dropdown1') {
 			this.formValues.dropdown1 = value;
 			this.formValues.dropdown2 = '';
 			this.formValues.dropdown3 = '';
-			this.formValues.dropdown4 = '';
 			this.updateDropdown2Options(value);
 			this.dropdown3Options = [];
-			this.dropdown4Options = [];
-			this.cancelEdit();
-			return;
-		}
-		if (name === 'dropdown2') {
+		} else if (name === 'dropdown2') {
 			this.formValues.dropdown2 = value;
 			this.formValues.dropdown3 = '';
-			this.formValues.dropdown4 = '';
 			this.updateDropdown3Options(value);
-			this.dropdown4Options = [];
-			this.cancelEdit();
-			return;
-		}
-		if (name === 'dropdown3') {
+		} else {
 			this.formValues.dropdown3 = value;
-			this.formValues.dropdown4 = '';
-			this.updateDropdown4Options(value);
-			this.cancelEdit();
-			return;
 		}
-		this.formValues.dropdown4 = value;
+		this.refreshAreaKeys();
 		this.cancelEdit();
 	}
 
@@ -594,13 +652,13 @@ private updateDropdown3Options(province: string): void {
     return Math.max(0, Math.min(100, pct));
   }
 
-	// Starts editing a specific metric cell.
-	startEdit(entry: BbAnwEntry, key: MetricKey): void {
+	// Starts editing a specific metric cell for one area.
+	startEdit(entry: BbAnwEntry, key: MetricKey, areaKey: string): void {
 		if (key === 'totalMinutes') return; // computed
-		if (!this.isEditingAllowed || !this.selectedKey || this.cellSaving) return;
+		if (!this.isEditingAllowed || !areaKey || this.cellSaving) return;
 
-		const nestedKey = `${key}.${this.selectedKey}`;
-		const value = (entry as any)[key]?.[this.selectedKey];
+		const nestedKey = `${key}.${areaKey}`;
+		const value = (entry as any)[key]?.[areaKey];
 		this.editCell = {
 			rowId: entry.id,
 			key: nestedKey,
@@ -703,9 +761,8 @@ private updateDropdown3Options(province: string): void {
 	}
 
 	// Checks if a specific cell is currently being edited.
-	isEditingCell(entry: BbAnwEntry, key: MetricKey): boolean {
-		if (!this.selectedKey) return false;
-		return this.editCell.rowId === entry.id && this.editCell.key === `${key}.${this.selectedKey}`;
+	isEditingCell(entry: BbAnwEntry, key: MetricKey, areaKey: string): boolean {
+		return this.editCell.rowId === entry.id && this.editCell.key === `${key}.${areaKey}`;
 	}
 
 	// Cancels the current cell edit.
@@ -717,11 +774,8 @@ private updateDropdown3Options(province: string): void {
 	async exportToExcel(): Promise<void> {
 		const workbook = new ExcelJS.Workbook();
 		const worksheet = workbook.addWorksheet('BB & ANW KPI');
-	const exportEntries: BbAnwEntry[] = this.selectedKey
-			? this.data.filter((entry) => this.hasAreaData(entry, this.selectedKey!))
-			: this.data;
-		const areaKeys: string[] = this.selectedKey ? [this.selectedKey] : Object.keys(this.optionMapping);
-
+		const exportEntries: BbAnwEntry[] = this.data;
+		const areaKeys: string[] = this.groupedAreaKeys;
 
 		worksheet.addRow(['KPI (MSAN / OLT / IP Core - Network Availability)']);
 		worksheet.addRow([`Generated Date: ${new Date().toISOString().split('T')[0]}`]);
@@ -734,8 +788,10 @@ private updateDropdown3Options(province: string): void {
 			'Section',
 			'KPI Percent',
 			...areaKeys.flatMap((key) => {
-				const label = this.optionMapping[key] || key;
-				return [`${label} Availability (%)`, `${label} Unavailable Minutes`, `${label} Total Minutes`, `${label} Total Nodes`];
+				const label = this.areaLabel(key);
+				const engineer = this.areaEngineerGroups.find((group) => group.areaKeys.includes(key))?.label;
+				const heading = engineer ? `${engineer} - ${label}` : label;
+				return [`${heading} Availability (%)`, `${heading} Unavailable Minutes`, `${heading} Total Minutes`, `${heading} Total Nodes`];
 			}),
 		];
 
@@ -791,4 +847,3 @@ private updateDropdown3Options(province: string): void {
 		URL.revokeObjectURL(link.href);
 	}
 }
-

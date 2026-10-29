@@ -57,7 +57,8 @@ export class UserRegistrationComponent implements OnInit {
     { pageId: 7, name: 'Tower Maintainance' },
     { pageId: 8, name: 'Enterprise KPI' },
     { pageId: 9, name: 'Other Operator KPI' },
-    { pageId: 10, name: 'Other KPI' }
+    { pageId: 10, name: 'Other KPI' },
+    { pageId: 11, name: 'Power & A/C' }
   ];
 
   // Injects the required dependencies.

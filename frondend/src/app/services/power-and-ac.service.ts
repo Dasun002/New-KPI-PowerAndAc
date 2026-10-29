@@ -15,6 +15,8 @@ export interface PowerAndACRecord {
   isVerified: boolean;
 }
 
+export type PowerAndACWriteRecord = Omit<PowerAndACRecord, 'id' | 'isVerified'>;
+
 @Injectable({ providedIn: 'root' })
 export class PowerAndACService {
   private readonly base = `${environment.apiUrl}/powerandac`;
@@ -26,6 +28,22 @@ export class PowerAndACService {
   getByYear(year: number): Observable<PowerAndACRecord[]> {
     const params = new HttpParams().set('year', year);
     return this.http.get<PowerAndACRecord[]>(this.base, { params });
+  }
+
+  getAll(): Observable<PowerAndACRecord[]> {
+    return this.http.get<PowerAndACRecord[]>(this.base);
+  }
+
+  create(record: PowerAndACWriteRecord): Observable<PowerAndACRecord> {
+    return this.http.post<PowerAndACRecord>(this.base, record);
+  }
+
+  update(id: number, record: PowerAndACWriteRecord): Observable<PowerAndACRecord> {
+    return this.http.put<PowerAndACRecord>(`${this.base}/${id}`, record);
+  }
+
+  delete(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/${id}`);
   }
 
   // Toggles the verification status of a specific Power and AC record

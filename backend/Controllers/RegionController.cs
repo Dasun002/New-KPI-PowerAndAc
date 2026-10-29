@@ -2,27 +2,15 @@
  * File: RegionController.cs
  * Provides API endpoints for managing region data records including
  * retrieval, creation, update, and deletion.
- *
- * NOTE ABOUT EngName
- * Some databases do not have the EngName column yet. To keep the dashboard
- * working on those databases:
- *   - GET endpoints never read x.EngName (they return an empty string).
- *   - PUT uses ExecuteUpdateAsync, so only the listed columns are touched.
- *   - DELETE uses ExecuteDeleteAsync, so no entity (and no EngName) is loaded.
- *   - POST still needs the EngName column because EF inserts the whole entity.
- *     Add the column first:
- *       IF COL_LENGTH('dbo.RegionData','EngName') IS NULL
- *           ALTER TABLE dbo.RegionData ADD EngName NVARCHAR(200) NULL;
- *     After the column exists, you can switch the GET endpoints back to
- *     "EngName = x.EngName ?? string.Empty" (see the marked lines).
  */
 
 using backend.Data;
-using backend.DTOs;
-using backend.Models;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using backend.Models;
+using backend.DTOs;
+using Microsoft.AspNetCore.Authorization;
+
 
 namespace backend.Controllers
 {
@@ -50,6 +38,11 @@ namespace backend.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
+            // Retrieve all region records
+            // Important: only select columns that exist in the DB schema.
+            // Some environments may not yet have the Eng-Name column.
+            // Avoid selecting EngName entirely because not all DBs have the Eng-Name column yet.
+            // Returning RegionDto with EngName = "" keeps frontend compatible without breaking other pages.
             var items = await _context.RegionData
                 .AsNoTracking()
                 .Select(x => new RegionDto
@@ -59,15 +52,15 @@ namespace backend.Controllers
                     Province = x.Province,
                     NetworkEngineer = x.NetworkEngineer,
                     LeaCode = x.LeaCode,
-
-                    // EngName column not read, so this works on databases without it.
-                    // Once the column exists, you may use: x.EngName ?? string.Empty
-                    EngName = string.Empty
+                    EngName = x.EngName ?? string.Empty
                 })
                 .ToListAsync();
 
+
             return Ok(items);
+
         }
+
 
         // =========================================================
         // GET REGION DATA BY ID
@@ -75,10 +68,9 @@ namespace backend.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            // Filter first, then project, so only one row is read
+            // Find region record by primary key
             var data = await _context.RegionData
                 .AsNoTracking()
-                .Where(x => x.Id == id)
                 .Select(x => new RegionDto
                 {
                     Id = x.Id,
@@ -86,11 +78,9 @@ namespace backend.Controllers
                     Province = x.Province,
                     NetworkEngineer = x.NetworkEngineer,
                     LeaCode = x.LeaCode,
-
-                    // Same rule as GetAll: avoid the EngName column for now
-                    EngName = string.Empty
+                    EngName = x.EngName ?? string.Empty
                 })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(x => x.Id == id);
 
             if (data == null)
                 return NotFound();
@@ -98,20 +88,23 @@ namespace backend.Controllers
             return Ok(data);
         }
 
+
         // =========================================================
         // CREATE NEW REGION RECORD
         // Admin-only endpoint
-        // Requires the EngName column to exist (EF inserts all mapped columns)
         // =========================================================
         [HttpPost]
         [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> Create(RegionDto model)
         {
+            // Insert new region record
             var entity = new RegionData
             {
                 Region = model.Region,
                 Province = model.Province,
                 NetworkEngineer = model.NetworkEngineer,
+                // EngName is only available in some DB versions.
+                // If column doesn't exist, this action will fail; GetAll/GetById remain safe.
                 EngName = model.EngName,
                 LeaCode = model.LeaCode
             };
@@ -133,10 +126,10 @@ namespace backend.Controllers
             return Ok(created);
         }
 
+
         // =========================================================
         // UPDATE EXISTING REGION RECORD
         // Admin-only endpoint
-        // Updates only the listed columns, so it works without EngName
         // =========================================================
         [HttpPut("{id}")]
         [Authorize(Policy = "AdminOnly")]
@@ -146,30 +139,32 @@ namespace backend.Controllers
             if (id != model.Id)
                 return BadRequest();
 
-            var rows = await _context.RegionData
-                .Where(x => x.Id == id)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(x => x.Region, model.Region)
-                    .SetProperty(x => x.Province, model.Province)
-                    .SetProperty(x => x.NetworkEngineer, model.NetworkEngineer)
-                    .SetProperty(x => x.LeaCode, model.LeaCode));
-
-            if (rows == 0)
+            var entity = await _context.RegionData.FindAsync(id);
+            if (entity == null)
                 return NotFound();
 
-            // Return the updated values (EngName left empty, see note at top)
+            entity.Region = model.Region;
+            entity.Province = model.Province;
+            entity.NetworkEngineer = model.NetworkEngineer;
+            // EngName is only available in some DB versions.
+            entity.EngName = model.EngName;
+            entity.LeaCode = model.LeaCode;
+
+            await _context.SaveChangesAsync();
+
             var updated = new RegionDto
             {
-                Id = id,
-                Region = model.Region,
-                Province = model.Province,
-                NetworkEngineer = model.NetworkEngineer,
-                EngName = model.EngName ?? string.Empty,
-                LeaCode = model.LeaCode
+                Id = entity.Id,
+                Region = entity.Region,
+                Province = entity.Province,
+                NetworkEngineer = entity.NetworkEngineer,
+                EngName = entity.EngName ?? string.Empty,
+                LeaCode = entity.LeaCode
             };
 
             return Ok(updated);
         }
+
 
         // =========================================================
         // DELETE REGION RECORD
@@ -179,12 +174,16 @@ namespace backend.Controllers
         [Authorize(Policy = "AdminOnly")]
         public async Task<IActionResult> Delete(int id)
         {
-            var rows = await _context.RegionData
-                .Where(x => x.Id == id)
-                .ExecuteDeleteAsync();
+            // Find region record by id
+            var data = await _context.RegionData.FindAsync(id);
 
-            if (rows == 0)
+            if (data == null)
                 return NotFound();
+
+            // Remove region record
+            _context.RegionData.Remove(data);
+
+            await _context.SaveChangesAsync();
 
             return Ok();
         }
