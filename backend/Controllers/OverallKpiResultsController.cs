@@ -30,17 +30,24 @@ namespace backend.Controllers
         private readonly backend.Services.RoutineMaintenanceService _routineService;
         private readonly backend.Services.TowerMaintenanceService _towerService;
         private readonly backend.Services.PowerAndACService _powerService;
+        // Opt-in switch: when true, the KPI definition named by PowerAc:OverallKpiDefinitionId is filled from the
+        // saved four-component Power & AC snapshot instead of the legacy scheduled/attended branch. Default false.
+        private readonly bool _useComponentPowerAcKpi;
+        private readonly int? _powerAcKpiDefinitionId;
 
         public OverallKpiResultsController(
             AppDbContext db,
             backend.Services.RoutineMaintenanceService routineService,
             backend.Services.TowerMaintenanceService towerService,
-            backend.Services.PowerAndACService powerService)
+            backend.Services.PowerAndACService powerService,
+            IConfiguration configuration)
         {
             _db = db;
             _routineService = routineService;
             _towerService = towerService;
             _powerService = powerService;
+            _useComponentPowerAcKpi = configuration.GetValue<bool>("PowerAc:UseComponentKpiInOverall");
+            _powerAcKpiDefinitionId = configuration.GetValue<int?>("PowerAc:OverallKpiDefinitionId");
         }
 
         // =========================================================
@@ -82,8 +89,8 @@ namespace backend.Controllers
         // 7. Persist results to database for audit and performance
         // Returns: List of newly calculated KPI results
         // =========================================================
+        // Requires an authenticated user (class-level [Authorize]). Previously [AllowAnonymous].
         [HttpPost("calculate")]
-        [AllowAnonymous]
         public async Task<ActionResult<List<OverallKpiResultDto>>> Calculate(
             [FromQuery] int? month,
             [FromQuery] int? year)
@@ -96,8 +103,8 @@ namespace backend.Controllers
             return Ok(calculated.Select(ToDto).ToList());
         }
 
+        // Requires an authenticated user (class-level [Authorize]). Previously [AllowAnonymous].
         [HttpPost("calculate-range")]
-        [AllowAnonymous]
         public async Task<ActionResult<List<OverallKpiResultDto>>> CalculateRange(
             [FromQuery] int year,
             [FromQuery] int startMonth,
@@ -473,6 +480,48 @@ namespace backend.Controllers
                             AchievedKpi = achieved,
                             MaximumPointsPerKpi = maxPoints,
                             PointsAchieved = CalculatePointsAchieved(maxPoints, achieved, 95m),
+                            Month = month,
+                            Year = year,
+                            CalculatedAt = nowUtc
+                        });
+                    }
+                    continue;
+                }
+
+                if (_useComponentPowerAcKpi && _powerAcKpiDefinitionId == kpi.Id)
+                {
+                    // Four-component Power & AC KPI, selected by KPI id (not by name).
+                    // Uses the SAVED monthly snapshot (Power & A/C KPI -> Calculate & Save), so the overall
+                    // scorecard shows exactly the reviewed result. Only Complete groups are written; Incomplete or
+                    // Pending groups and months without a saved snapshot get no row (never a silent zero).
+                    var savedPowerAc = await _db.PowerAcKpiResults.AsNoTracking()
+                        .Include(r => r.EngineerGroup)
+                        .Where(r => r.Year == year
+                            && r.PeriodType == backend.Models.PowerAc.PowerAcPeriodTypes.Month
+                            && r.PeriodNumber == month)
+                        .ToListAsync();
+                    if (savedPowerAc.Count == 0)
+                        Console.WriteLine($"Power & AC: no saved snapshot for {year}-{month:00}; KPI {kpi.Id} left without results.");
+
+                    foreach (var saved in savedPowerAc.Where(r =>
+                        r.Status == backend.Models.PowerAc.PowerAcResultStatus.Complete
+                        && r.CompositeAchievement.HasValue && r.MaximumPoints.HasValue && r.PointsAchieved.HasValue))
+                    {
+                        var region = dbRegions.FirstOrDefault(r => r.Id == saved.EngineerGroup!.RegionDataId);
+                        var area = CanonicalizeArea(region?.LeaCode, officialAreas);
+                        if (area == string.Empty) continue;
+
+                        results.Add(new OverallKpiResult
+                        {
+                            KpiCode = $"KPI-{kpi.Id}",
+                            KpiDefinitionId = kpi.Id,
+                            KpiName = kpi.KeyPerformanceIndicators,
+                            Platform = kpi.Perspectives,
+                            AreaCode = area,
+                            TargetValue = Math.Round(saved.CompositeTarget * 100m, 4),
+                            AchievedKpi = Math.Round(saved.CompositeAchievement!.Value * 100m, 4),
+                            MaximumPointsPerKpi = saved.MaximumPoints!.Value,
+                            PointsAchieved = saved.PointsAchieved!.Value,
                             Month = month,
                             Year = year,
                             CalculatedAt = nowUtc

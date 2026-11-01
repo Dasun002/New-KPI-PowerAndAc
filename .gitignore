@@ -9,6 +9,8 @@
 backend/bin/
 backend/obj/
 backend/publish/
+backend.Tests/bin/
+backend.Tests/obj/
 
 # Frontend dependencies and generated output
 frondend/node_modules/

@@ -93,6 +93,21 @@ namespace backend.Data
       public DbSet<PowerAndAC> PowerAndAC { get; set; } = null!;
 
         // =========================
+        // POWER & AC KPI (four-component model, see PowerAcModelConfiguration)
+        // =========================
+        public DbSet<backend.Models.PowerAc.PowerAcComponent> PowerAcComponents { get; set; } = null!;
+        public DbSet<backend.Models.PowerAc.PowerAcComponentWeight> PowerAcComponentWeights { get; set; } = null!;
+        public DbSet<backend.Models.PowerAc.PowerAcEngineerGroup> PowerAcEngineerGroups { get; set; } = null!;
+        public DbSet<backend.Models.PowerAc.PowerAcGroupUserAssignment> PowerAcGroupUserAssignments { get; set; } = null!;
+        public DbSet<backend.Models.PowerAc.PowerAcAreaAllocation> PowerAcAreaAllocations { get; set; } = null!;
+        public DbSet<backend.Models.PowerAc.PowerAcComponentResult> PowerAcComponentResults { get; set; } = null!;
+        public DbSet<backend.Models.PowerAc.PowerAcCalculationSetting> PowerAcCalculationSettings { get; set; } = null!;
+        public DbSet<backend.Models.PowerAc.PowerAcKpiResult> PowerAcKpiResults { get; set; } = null!;
+        public DbSet<backend.Models.PowerAc.PowerAcKpiComponentScore> PowerAcKpiComponentScores { get; set; } = null!;
+        public DbSet<backend.Models.PowerAc.PowerAcComponentVersion> PowerAcComponentVersions { get; set; } = null!;
+        public DbSet<backend.Models.PowerAc.PowerAcAuditLog> PowerAcAuditLogs { get; set; } = null!;
+
+        // =========================
         // AGED NETWORK FAILURE METRICS
         // =========================
        //public DbSet<AgedNetworkFailureMetric> AgedNetworkFailureMetrics { get; set; } = null!;
@@ -770,6 +785,9 @@ namespace backend.Data
                                 .IsUnique()
                                 .HasDatabaseName("UQ_PowerAndAC_Designation_Year_Month");
                   });
+
+            // POWER & AC KPI COMPONENT TABLES
+            PowerAcModelConfiguration.Configure(modelBuilder);
 
             base.OnModelCreating(modelBuilder);
         }

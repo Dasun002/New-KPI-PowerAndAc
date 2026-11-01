@@ -75,6 +75,11 @@ export const platformNavOptions: NavOption[] = [
     title: 'Platform KPI — Power & A/C'
   },
   {
+    label: 'Power & A/C KPI',
+    path: 'platform/power-ac-kpi',
+    title: 'Platform KPI — Power & A/C KPI'
+  },
+  {
     label: 'Other Operator',
     path: 'platform/tower-mtce-achievement',
     title: 'Platform KPI — Other Operator'
@@ -149,6 +154,11 @@ export const adminNavOptions: NavOption[] = [
     label: 'Power & A/C',
     path: 'admin/power-ac',
     title: 'Admin — Power & A/C'
+  },
+  {
+    label: 'Power & A/C KPI Config',
+    path: 'admin/power-ac-config',
+    title: 'Admin — Power & A/C KPI Configuration'
   },
   {
     label: 'E-mail Service',

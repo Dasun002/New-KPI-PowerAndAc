@@ -77,6 +77,9 @@ builder.Services.AddScoped<IIpnwMtcDataCumulativeService, IpnwMtcDataCumulativeS
 builder.Services.AddScoped<RoutineMaintenanceService>();
 builder.Services.AddScoped<TowerMaintenanceService>();
 builder.Services.AddScoped<PowerAndACService>();
+// Power & AC four-component KPI
+builder.Services.AddScoped<backend.Services.PowerAc.PowerAcKpiCalculationService>();
+builder.Services.AddScoped<backend.Services.PowerAc.PowerAcAccessService>();
 builder.Services.AddScoped<AnalyticsService>();
 
 var app = builder.Build();
