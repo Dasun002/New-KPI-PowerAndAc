@@ -1,0 +1,24 @@
+<!--
+  File: admin-dropdown.component.html
+  Description: Admin dropdown menu template
+  Displays categorized navigation options for admin and platform pages
+-->
+
+<div class="dropdown" [class.open]="isOpen && isDropdown">
+  <button class="nav-btn ghost" type="button" (click)="onToggleMenu()">
+    {{ dropdownLabel }}
+    <span class="chevron" *ngIf="isDropdown">▾</span>
+  </button>
+  <ul class="dropdown-menu" [class.visible]="isOpen" *ngIf="isDropdown">
+    <ng-container *ngFor="let section of sections; let isLast = last">
+      <li class="section-header" [ngClass]="section.theme">
+        <span>{{ section.title }}</span>
+      </li>
+      <li *ngFor="let option of section.options" [ngClass]="section.theme">
+        <button type="button" (click)="onSelection(option.path)">{{ option.label }}</button>
+      </li>
+      <li class="section-divider" *ngIf="!isLast" role="separator" aria-hidden="true"></li>
+    </ng-container>
+  </ul>
+</div>
+

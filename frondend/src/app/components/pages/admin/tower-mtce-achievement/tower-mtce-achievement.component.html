@@ -1,0 +1,76 @@
+<div class="kpi-page">
+  <div class="kpi-overlay"></div>
+
+  <section class="kpi-hero">
+    <h1>{{ pageTitle }}</h1>
+    <p>Admin panel for Tower Maintenance KPIs</p>
+  </section>
+
+  <!-- FORM -->
+  <section class="form-section">
+    <form class="kpi-form" [formGroup]="form" (ngSubmit)="onSubmit()">
+      <h2>{{ editingId ? 'Update KPI' : 'Add KPI' }}</h2>
+
+      <div class="field-group">
+        <input type="text" formControlName="responsibility" placeholder="Responsibility" />
+      </div>
+
+      <div class="field-group">
+        <input type="text" formControlName="frequency" placeholder="Frequency" />
+      </div>
+
+      <div class="field-group">
+        <input type="text" formControlName="weightage" placeholder="Weightage" />
+      </div>
+
+      <div class="field-group">
+        <input type="text" formControlName="kpi" placeholder="KPI" />
+      </div>
+
+      <div class="actions">
+        <button type="submit" [disabled]="saving">
+          {{ editingId ? 'Update' : 'Add' }}
+        </button>
+
+        <button
+          type="button"
+          class="secondary"
+          *ngIf="editingId"
+          (click)="onCancelEdit()">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <!-- TABLE -->
+  <section class="table-section">
+    <div class="state" *ngIf="loading">Loading KPI data...</div>
+    <div class="state error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+    <table class="kpi-table" *ngIf="records.length">
+      <thead>
+        <tr>
+          <th>Responsibility</th>
+          <th>Frequency</th>
+          <th>Weightage</th>
+          <th>KPI</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr *ngFor="let record of records">
+          <td>{{ record.responsibility }}</td>
+          <td>{{ record.frequency }}</td>
+          <td>{{ record.weightage }}</td>
+          <td>{{ record.kpi }}</td>
+          <td>
+            <button class="edit" (click)="onEdit(record)">Edit</button>
+            <button class="delete" (click)="onDelete(record.id)">Delete</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+</div>

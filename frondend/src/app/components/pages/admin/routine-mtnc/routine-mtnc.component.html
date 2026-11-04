@@ -1,0 +1,95 @@
+<!-- Renders routine maintenance KPI definitions with add, edit, and delete controls. -->
+<div class="page-container">
+  <div class="page-header">
+    <h1>{{ pageTitle }}</h1>
+  </div>
+
+  <div class="dashboard-container">
+    <div class="form-container">
+      <div class="form-header">
+        <div>
+          <h2>{{ formTitle }}</h2>
+          <p class="form-sub">Manage Routine Maintenance KPI records</p>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-submit" form="routine-mtnc-form" [disabled]="form.invalid || saving">
+            {{ submitButtonLabel }}
+          </button>
+          <button type="button" class="btn-cancel" *ngIf="editingId" (click)="onCancelEdit()" [disabled]="saving">
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      <form id="routine-mtnc-form" class="kpi-form" [formGroup]="form" (ngSubmit)="onSubmit()"
+        [class.edit-mode]="editingId">
+        <div class="form-row">
+          <div class="form-group">
+            <label>KPI</label>
+            <input type="text" formControlName="kpi" placeholder="KPI" required [class.editing]="editingId" />
+            <span class="error" *ngIf="form.controls.kpi.invalid && form.controls.kpi.touched">Required</span>
+          </div>
+
+          <div class="form-group">
+            <label>Category</label>
+            <input type="text" formControlName="calculation" placeholder="Category" required
+              [class.editing]="editingId" />
+            <span class="error"
+              *ngIf="form.controls.calculation.invalid && form.controls.calculation.touched">Required</span>
+          </div>
+
+          <div class="form-group">
+            <label>Target</label>
+            <input type="text" formControlName="target" placeholder="Target" required [class.editing]="editingId" />
+            <span class="error" *ngIf="form.controls.target.invalid && form.controls.target.touched">Required</span>
+          </div>
+
+          <div class="form-group">
+            <label>Weightage (%)</label>
+            <input type="text" formControlName="responsibleDGM" placeholder="Weightage (%)" required
+              [class.editing]="editingId" />
+            <span class="error"
+              *ngIf="form.controls.responsibleDGM.invalid && form.controls.responsibleDGM.touched">Required</span>
+          </div>
+        </div>
+
+
+      </form>
+    </div>
+
+    <div class="table-wrapper">
+      <div class="table-responsive">
+        <table class="kpi-table">
+          <thead>
+            <tr>
+              <th>KPI</th>
+              <th>Category</th>
+              <th>Target</th>
+              <th>Weightage (%)</th>
+              <th class="actions-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngIf="records.length===0">
+              <td colspan="5" class="no-data">No maintenance KPI data available</td>
+            </tr>
+
+            <tr *ngFor="let record of records">
+              <td>{{ record.kpi }}</td>
+              <td>{{ record.calculation }}</td>
+              <td>{{ record.target }}</td>
+              <td>{{ record.responsibleDGM }}</td>
+              <td class="actions-col">
+                <div class="action-buttons">
+                  <button type="button" class="btn-edit" (click)="onEdit(record)" [disabled]="saving">Edit</button>
+                  <button type="button" class="btn-delete" (click)="onDelete(record._id)"
+                    [disabled]="saving">Delete</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

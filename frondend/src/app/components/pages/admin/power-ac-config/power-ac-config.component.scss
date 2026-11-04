@@ -1,0 +1,142 @@
+/* Additions on top of the shared KPI admin theme
+   (../enterprise-kpi/enterprise-kpi.component.scss is loaded first via styleUrls). */
+
+.section-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem;
+  margin-bottom: 1.75rem;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .65rem 1.2rem;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+    color: #334155;
+    font-weight: 700;
+    font-size: .9rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .04);
+    transition: all .2s ease;
+
+    i { color: var(--accent-primary); }
+
+    &:hover { border-color: var(--accent-primary); }
+
+    &.active {
+      border-color: transparent;
+      background: linear-gradient(135deg, var(--accent-primary), #0078d4);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(0, 87, 166, .2);
+
+      i { color: #fff; }
+    }
+  }
+}
+
+/* Same look as the existing inputs for selects inside the admin forms. */
+.form-group select {
+  padding: .85rem 1rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #102136;
+  font-size: .95rem;
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    background: white;
+    box-shadow: 0 0 0 1px var(--accent-primary);
+  }
+}
+
+.form-group input:disabled,
+.form-group select:disabled {
+  opacity: .6;
+}
+
+.form-row.single {
+  grid-template-columns: 1fr;
+}
+
+.wide-group {
+  grid-column: span 2;
+}
+
+.check-group {
+  justify-content: flex-end;
+}
+
+.check-label {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  min-height: 48px;
+  margin: 0 !important;
+  cursor: pointer;
+
+  input { width: 18px; height: 18px; }
+}
+
+.total-box {
+  padding: .85rem 1rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  font-weight: 700;
+
+  &.is-valid { border-color: #afe0c0; background: #effbf3; color: #238447; }
+  &.is-invalid { border-color: #f1b5bd; background: #fff3f4; color: #b42332; }
+}
+
+.error {
+  color: #dc3545;
+  font-size: .85rem;
+  margin-top: .35rem;
+}
+
+.error-message,
+.success-message {
+  padding: .9rem 1.2rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+}
+
+.error-message { background: #fff3f4; border: 1px solid #f1b5bd; color: #b42332; }
+.success-message { background: #effbf3; border: 1px solid #afe0c0; color: #238447; }
+
+.yes-no {
+  display: inline-block;
+  padding: .2rem .65rem;
+  border-radius: 999px;
+  border: 1px solid #f3d28c;
+  background: #fff8e7;
+  color: #9a6700;
+  font-size: .8rem;
+  font-weight: 600;
+
+  &.yes { border-color: #afe0c0; background: #effbf3; color: #238447; }
+}
+
+.note-col {
+  max-width: 320px;
+  font-size: .85rem;
+  color: #475569;
+}
+
+.form-note {
+  margin: 1rem .25rem 0;
+  color: #64748b;
+  font-size: .88rem;
+}
+
+.table-responsive {
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+  .wide-group { grid-column: span 1; }
+}

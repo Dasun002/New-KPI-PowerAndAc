@@ -1,0 +1,209 @@
+@use '../../styles/nav-buttons' as navButtons;
+
+:host {
+  display: inline-flex;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Wrapper */
+.dropdown {
+  position: relative;
+}
+
+/* Let your global .nav-btn styles handle base button look */
+/* If you want “Admin” to look like other nav buttons, just keep class="nav-btn" as you already did */
+
+/* Dropdown menu */
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  min-width: 260px;
+  background: linear-gradient(to bottom, #ffffff 0%, #fcfcfc 100%);
+  border-radius: 10px;
+  padding: 0.6rem 0;
+  margin: 0;
+  list-style: none;
+  box-shadow: 0 10px 35px rgba(0, 87, 166, 0.12), 
+              0 4px 15px rgba(0, 0, 0, 0.08),
+              0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+  border: 1px solid rgba(0, 87, 166, 0.12);
+  z-index: 200;
+  backdrop-filter: blur(8px);
+  max-height: 85vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px) scale(0.98);
+  pointer-events: none;
+  transition:
+    opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    visibility 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* When open */
+.dropdown-menu.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+/* Reset list items */
+.dropdown-menu li {
+  margin: 0;
+  padding: 0;
+}
+
+.dropdown-menu li.section-header {
+  padding: 0.4rem 1.4rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 0;
+}
+
+.dropdown-menu li.section-header.admin {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.05));
+  color: #047857;
+}
+
+.dropdown-menu li.section-header.platform {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.2), rgba(59, 130, 246, 0.05));
+  color: #1d4ed8;
+}
+
+.dropdown-menu li.section-header.other {
+  background: linear-gradient(90deg, rgba(139, 92, 246, 0.2), rgba(99, 102, 241, 0.05));
+  color: #5b21b6;
+}
+
+.dropdown-menu li.section-divider {
+  height: 1px;
+  margin: 0.45rem 0.8rem;
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0), rgba(15, 23, 42, 0.35), rgba(15, 23, 42, 0));
+}
+
+/* Menu option buttons */
+.dropdown-menu li button {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0.85rem 1.4rem;
+  font-size: 0.92rem;
+  text-align: left;
+  color: #1f2937;
+  font-weight: 450;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  position: relative;
+  border-left: 3px solid transparent;
+  letter-spacing: 0.01em;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Arrow indicator */
+.dropdown-menu li button::before {
+  content: '→';
+  font-size: 0.95rem;
+  color: #0057A6;
+  font-weight: bold;
+  opacity: 0;
+  margin-right: 0.1rem;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  transform: translateX(-4px);
+}
+
+/* Hover state */
+/* Base hover (overridden per section) */
+.dropdown-menu li button:hover,
+.dropdown-menu li button:focus-visible {
+  padding-left: 1.8rem;
+  transform: translateX(2px);
+  outline: none;
+}
+
+.dropdown-menu li.admin button:hover,
+.dropdown-menu li.admin button:focus-visible {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05));
+  color: #047857;
+  border-left-color: #10b981;
+}
+
+.dropdown-menu li.platform button:hover,
+.dropdown-menu li.platform button:focus-visible {
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.05));
+  color: #1d4ed8;
+  border-left-color: #3b82f6;
+}
+
+.dropdown-menu li.other button:hover,
+.dropdown-menu li.other button:focus-visible {
+  background: linear-gradient(90deg, rgba(139, 92, 246, 0.2), rgba(99, 102, 241, 0.08));
+  color: #5b21b6;
+  border-left-color: #8b5cf6;
+}
+
+.dropdown-menu li button:active {
+  transform: translateX(1px) scale(0.99);
+  background: rgba(0, 87, 166, 0.12);
+}
+
+.dropdown-menu li button:hover::before,
+.dropdown-menu li button:focus-visible::before {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Chevron animation */
+.chevron {
+  font-size: 0.75rem;
+  opacity: 0.85;
+  margin-left: 0.35rem;
+  transition: transform 0.2s ease;
+}
+
+.dropdown.open .chevron {
+  transform: rotate(180deg);
+}
+
+/* Scrollbar styling */
+.dropdown-menu::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dropdown-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dropdown-menu::-webkit-scrollbar-thumb {
+  background: rgba(0, 87, 166, 0.25);
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.dropdown-menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 87, 166, 0.4);
+}
+
+/* Firefox scrollbar */
+.dropdown-menu {
+  scrollbar-color: rgba(0, 87, 166, 0.25) transparent;
+  scrollbar-width: thin;
+}
+
+/* ensure Admin trigger uses same nav button tokens */
+.nav-btn {
+  @include navButtons.nav-btn();
+}

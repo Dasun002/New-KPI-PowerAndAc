@@ -1,0 +1,83 @@
+<!-- Renders BB ANW header-level KPI management and the add/edit form. -->
+<div class="page-container">
+  <header class="page-header">
+    <h1>{{ pageTitle }}</h1>
+  </header>
+
+  <div class="dashboard-container">
+
+    <div class="form-container">
+
+      <div class="form-header">
+        <div>
+          <h2>{{ editingId ? 'Update KPI Row' : 'Create KPI Row' }}</h2>
+        </div>
+        <div class="form-actions">
+          <button class="btn-submit" type="submit" form="bb-anw-form" [disabled]="bbAnwForm.invalid || saving">{{
+            editingId ? 'Update' : 'Add' }}</button>
+          <button type="button" class="btn-cancel" *ngIf="editingId" (click)="closeForm()">Cancel</button>
+        </div>
+      </div>
+
+      <form id="bb-anw-form" #bbAnwForm="ngForm" class="kpi-form" (ngSubmit)="submitForm()">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="kpi">Network Engineer KPI</label>
+            <input id="kpi" type="text" [(ngModel)]="form.networkEngineerKpi" name="kpi"
+              placeholder="Network Engineer KPI" required />
+          </div>
+
+          <div class="form-group">
+            <label for="division">Category</label>
+            <input id="division" type="text" [(ngModel)]="form.division" name="division" placeholder="Category" />
+          </div>
+
+          <div class="form-group">
+            <label for="section">Target</label>
+            <input id="section" type="text" [(ngModel)]="form.section" name="section" placeholder="Target" />
+          </div>
+
+          <div class="form-group">
+            <label for="kpiPercent">Weightage (%)</label>
+            <input id="kpiPercent" type="number" [(ngModel)]="form.kpiPercent" name="kpiPercent"
+              placeholder="Weightage (%)" required />
+          </div>
+        </div>
+      </form>
+    </div>
+    <!-- </section> -->
+
+    <section class="table-section">
+      <div class="state" *ngIf="!data.length">No KPI entries yet.</div>
+
+      <div class="table-responsive" *ngIf="data.length">
+        <table class="kpi-table">
+          <thead>
+            <tr>
+              <th>Network Engineers KPI</th>
+              <th>Category</th>
+              <th>Target</th>
+              <th>Weightage (%)</th>
+              <th class="actions-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of data; trackBy: trackRow">
+              <td>{{ row.networkEngineerKpi }}</td>
+              <td>{{ row.division }}</td>
+              <td>{{ row.section }}</td>
+              <td>{{ row.kpiPercent }}</td>
+              <td class="actions-col">
+                <div class="action-buttons">
+                  <button type="button" class="btn-edit" (click)="editRow(row)">Edit</button>
+                  <button type="button" class="btn-delete" (click)="deleteRow(row.id)">Delete</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+</div>

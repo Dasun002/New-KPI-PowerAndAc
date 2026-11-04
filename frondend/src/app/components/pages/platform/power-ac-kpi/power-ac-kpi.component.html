@@ -1,0 +1,506 @@
+<div class="kpi-page">
+  <div class="kpi-overlay"></div>
+
+  <section class="hero-panel">
+    <div class="hero-content">
+      <h1>Power &amp; A/C KPI</h1>
+      <p class="hero-subtitle">Preventive Maintenance, Critical Safety, Corrective Action and Power System Availability across network areas.</p>
+    </div>
+    <div class="hero-actions">
+      <button type="button" class="export-btn" id="pac-calculate" *ngIf="canCalculate && tab === 'results'"
+        (click)="calculateAndSave()" [disabled]="loading">
+        Calculate &amp; Save
+      </button>
+    </div>
+  </section>
+
+  <nav class="section-switcher" role="tablist">
+    <button type="button" role="tab" [class.active]="tab === 'results'" [attr.aria-selected]="tab === 'results'" (click)="setTab('results')"><i class="bi bi-clipboard-data-fill"></i>Results</button>
+    <button type="button" role="tab" [class.active]="tab === 'allocations'" [attr.aria-selected]="tab === 'allocations'" (click)="setTab('allocations')"><i class="bi bi-diagram-3-fill"></i>Area Allocation</button>
+    <button *ngIf="canEnterData" type="button" role="tab" [class.active]="tab === 'data'" [attr.aria-selected]="tab === 'data'" (click)="setTab('data')"><i class="bi bi-pencil-square"></i>Component Data</button>
+    <button *ngIf="canVerify" type="button" role="tab" [class.active]="tab === 'review'" [attr.aria-selected]="tab === 'review'" (click)="setTab('review')"><i class="bi bi-patch-check-fill"></i>Review</button>
+  </nav>
+
+  <!-- Filters shown inside each card's title stripe, as on the Tower / Routine Maintenance pages. -->
+  <ng-template #periodFilters>
+    <div class="header-filters">
+      <div class="filter-group" *ngIf="tab === 'results'">
+        <label for="pac-period-type">Period:</label>
+        <select id="pac-period-type" class="filter-select" [(ngModel)]="periodType" (ngModelChange)="onPeriodChange()">
+          <option value="Month">Month</option>
+          <option value="Quarter">Quarter</option>
+        </select>
+      </div>
+      <div class="filter-group" *ngIf="tab !== 'results' || periodType === 'Month'">
+        <label for="pac-month">Month:</label>
+        <select id="pac-month" class="filter-select" [(ngModel)]="month" (ngModelChange)="onPeriodChange()">
+          <option *ngFor="let m of months" [ngValue]="m.value">{{ m.label }}</option>
+        </select>
+      </div>
+      <div class="filter-group" *ngIf="tab === 'results' && periodType === 'Quarter'">
+        <label for="pac-quarter">Quarter:</label>
+        <select id="pac-quarter" class="filter-select" [(ngModel)]="quarter" (ngModelChange)="onPeriodChange()">
+          <option *ngFor="let q of quarters" [ngValue]="q.value">{{ q.label }}</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="pac-year">Year:</label>
+        <select id="pac-year" class="filter-select" [(ngModel)]="year" (ngModelChange)="onPeriodChange()">
+          <option *ngFor="let y of years" [ngValue]="y">{{ y }}</option>
+        </select>
+      </div>
+      <div class="filter-group" *ngIf="tab === 'data'">
+        <label for="pac-component">Component:</label>
+        <select id="pac-component" class="filter-select" [(ngModel)]="dataComponentId" (ngModelChange)="loadDataRows()">
+          <option *ngFor="let c of entryComponents" [ngValue]="c.id">{{ c.name }}</option>
+        </select>
+      </div>
+    </div>
+  </ng-template>
+
+  <section class="table-section">
+    <div class="state" *ngIf="loading">Loading Power &amp; A/C KPI data...</div>
+    <div class="state error" *ngIf="error">{{ error }}</div>
+    <div class="state success" *ngIf="message && !error">{{ message }}</div>
+
+    <!-- ===================== RESULTS ===================== -->
+    <ng-container *ngIf="tab === 'results' && results">
+      <div class="state warning global-issues" *ngIf="results.globalIssues.length">
+        <strong>Points are not calculated yet:</strong>
+        <ul><li *ngFor="let issue of results.globalIssues">{{ issue }}</li></ul>
+      </div>
+
+      <!-- Readiness: configured -> data complete -> verified -> approved -> score-ready, per engineer group -->
+      <article class="data-card" *ngIf="readiness">
+        <header>
+          <div>
+            <h2><i class="bi bi-list-check me-2"></i>Scoring Readiness</h2>
+            <p>
+              Allocations {{ readiness.allocationsEntered }} / {{ readiness.groupCount }}
+              · Scoring methods approved {{ readiness.approvedComponentCount }} / {{ readiness.componentCount }}
+              · Points formula {{ readiness.pointsMethodApproved ? 'approved' : 'not approved' }}
+              · Weights {{ readiness.weightTotal }}%
+              · {{ readiness.requireVerifiedData ? 'Only verified data counts' : 'Unverified data counts' }}
+            </p>
+          </div>
+          <div class="readiness-counts">
+            <span *ngFor="let st of readinessStates" class="status-pill" [ngClass]="readinessClass(st)">
+              {{ readinessStateLabels[st] }}: {{ readiness.stateCounts[st] ?? 0 }}
+            </span>
+          </div>
+        </header>
+        <div class="table-wrapper">
+          <table class="data-table overview-table readiness-table">
+            <thead>
+              <tr>
+                <th>Check</th>
+                <th *ngFor="let g of readiness.groups">{{ groupHeaderById(g.engineerGroupId) }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of readinessRows">
+                <td class="kpi-name">{{ row.label }}</td>
+                <td *ngFor="let g of readiness.groups" class="check-cell" [title]="readinessTitle(row, g.engineerGroupId)">
+                  <ng-container [ngSwitch]="readinessCheck(row, g.engineerGroupId)">
+                    <i *ngSwitchCase="true" class="bi bi-check-circle-fill check-yes"></i>
+                    <i *ngSwitchCase="false" class="bi bi-x-circle-fill check-no"></i>
+                    <span *ngSwitchDefault>—</span>
+                  </ng-container>
+                </td>
+              </tr>
+              <tr class="emphasis-row">
+                <td class="kpi-name">Readiness</td>
+                <td *ngFor="let g of readiness.groups" [title]="g.blockers.join('\n')">
+                  <span class="status-pill" [ngClass]="readinessClass(g.state)">{{ readinessStateLabels[g.state] }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="decisions" *ngIf="readiness.pendingBusinessDecisions.length">
+          <strong><i class="bi bi-hourglass-split me-1"></i>Awaiting business decision</strong>
+          <ul><li *ngFor="let d of readiness.pendingBusinessDecisions">{{ d }}</li></ul>
+        </div>
+      </article>
+
+      <article class="data-card">
+        <header>
+          <div>
+            <h2><i class="bi bi-lightning-charge-fill me-2"></i>Power &amp; A/C KPI Overview</h2>
+            <p>
+              {{ periodLabel }} ·
+              {{ results.isPreview ? 'Live preview (not saved)' : 'Saved ' + (results.calculatedAt | date:'medium') + (results.calculatedBy ? ' by ' + results.calculatedBy : '') }}
+              · Complete {{ results.completeCount }} · Incomplete {{ results.incompleteCount }} · Pending {{ results.pendingCount }}
+              · Points {{ number(results.totalPointsAchieved) }} / {{ number(results.totalMaximumPoints) }}
+              <button type="button" class="header-link" (click)="refreshPreview()" [disabled]="loading">Refresh preview</button>
+            </p>
+          </div>
+          <ng-container *ngTemplateOutlet="periodFilters"></ng-container>
+        </header>
+
+        <div class="table-wrapper">
+          <table class="data-table overview-table">
+            <thead>
+              <tr>
+                <th>KPI</th>
+                <th>Target</th>
+                <th>Weight</th>
+                <th *ngFor="let g of results.groups">{{ groupHeaderById(g.engineerGroupId) }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of overviewRows" [class.emphasis-row]="row.emphasis">
+                <td class="kpi-name">{{ row.label }}</td>
+                <td>{{ row.target }}</td>
+                <td>{{ row.weight }}</td>
+                <td *ngFor="let g of results.groups" class="achievement-cell" [title]="overviewTitle(row, g)">
+                  <span *ngIf="row.key === 'STATUS'; else valueText" class="status-pill" [ngClass]="statusClass(g.status)">{{ g.status }}</span>
+                  <ng-template #valueText>
+                    <strong *ngIf="row.emphasis; else plainValue">{{ overviewValue(row, g) }}</strong>
+                    <ng-template #plainValue><span [class.muted-value]="overviewApproved(row, g) === false">{{ overviewValue(row, g) }}</span></ng-template>
+                  </ng-template>
+                  <div class="approval-icon" *ngIf="overviewApproved(row, g) !== null"
+                       [ngClass]="overviewApproved(row, g) ? 'approved' : 'unapproved'">
+                    <i class="bi bi-check" *ngIf="overviewApproved(row, g)"></i>
+                    <i class="bi bi-x" *ngIf="!overviewApproved(row, g)"></i>
+                  </div>
+                </td>
+              </tr>
+              <tr *ngIf="!results.groups.length">
+                <td colspan="3">No engineer groups are configured.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <!-- Preventive Maintenance: distribution (scheduled) vs achievement (attended) -->
+      <article class="data-card">
+        <header>
+          <div>
+            <h2><i class="bi bi-tools me-2"></i>Preventive Maintenance</h2>
+            <p>Scheduled vs attended per NW region. Monthly KPI uses quarter-to-date values (the quarter restarts in January, April, July and October).</p>
+          </div>
+        </header>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th rowspan="2">Month</th>
+                <th *ngFor="let g of groups" colspan="2">{{ groupHeader(g) }}</th>
+              </tr>
+              <tr>
+                <ng-container *ngFor="let g of groups">
+                  <th>Scheduled</th>
+                  <th>Attended</th>
+                </ng-container>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Allocation</td>
+                <ng-container *ngFor="let g of groups"><td colspan="2"><strong>{{ allocationFor(g) }}</strong></td></ng-container>
+              </tr>
+              <tr *ngFor="let m of detailMonths">
+                <td>{{ months[m - 1].label }}</td>
+                <ng-container *ngFor="let g of groups">
+                  <td>{{ pmRecord(g, m)?.scheduled ?? '—' }}</td>
+                  <td class="achievement-cell">
+                    {{ pmRecord(g, m)?.attended ?? '—' }}
+                    <div class="approval-icon" *ngIf="pmRecord(g, m) as rec"
+                         [ngClass]="rec.isVerified ? 'approved' : 'unapproved'"
+                         (click)="togglePmVerified(rec)"
+                         [title]="canVerifyPm ? 'Click to toggle approval' : 'Verification status'">
+                      <i class="bi bi-check" *ngIf="rec.isVerified"></i>
+                      <i class="bi bi-x" *ngIf="!rec.isVerified"></i>
+                    </div>
+                  </td>
+                </ng-container>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <!-- Critical Safety: incidents per month -->
+      <article class="data-card">
+        <header>
+          <div>
+            <h2><i class="bi bi-shield-exclamation me-2"></i>Critical Safety</h2>
+            <p>Incidents per NW region (target 0). The scoring formula is applied only after it is approved.</p>
+          </div>
+        </header>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th rowspan="2">Month</th>
+                <th *ngFor="let g of groups" colspan="2">{{ groupHeader(g) }}</th>
+              </tr>
+              <tr>
+                <ng-container *ngFor="let g of groups">
+                  <th>Incidents</th>
+                  <th>Status</th>
+                </ng-container>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Allocation</td>
+                <ng-container *ngFor="let g of groups"><td colspan="2"><strong>{{ allocationFor(g) }}</strong></td></ng-container>
+              </tr>
+              <tr *ngFor="let m of detailMonths">
+                <td>{{ months[m - 1].label }}</td>
+                <ng-container *ngFor="let g of groups">
+                  <td>{{ componentRecord(g, 'SAFETY', m)?.incidentCount ?? '—' }}</td>
+                  <td class="achievement-cell">
+                    {{ componentRecord(g, 'SAFETY', m)?.status ?? '—' }}
+                    <div class="approval-icon" *ngIf="componentRecord(g, 'SAFETY', m) as rec"
+                         [ngClass]="rec.status === 'Verified' ? 'approved' : 'unapproved'" [title]="rec.status">
+                      <i class="bi bi-check" *ngIf="rec.status === 'Verified'"></i>
+                      <i class="bi bi-x" *ngIf="rec.status !== 'Verified'"></i>
+                    </div>
+                  </td>
+                </ng-container>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <!-- Corrective Action and Power System Availability: applicable vs completed -->
+      <article class="data-card" *ngFor="let detail of [
+          { code: 'CORRECTIVE', title: 'Corrective Action and Maintenance Record', icon: 'bi-journal-check', left: 'Applicable', right: 'Completed' },
+          { code: 'AVAILABILITY', title: 'Power System Availability', icon: 'bi-plug-fill', left: 'Applicable', right: 'Available' }
+        ]">
+        <header>
+          <div>
+            <h2><i class="bi me-2" [ngClass]="detail.icon"></i>{{ detail.title }}</h2>
+            <p>Distribution vs achievement per NW region.</p>
+          </div>
+        </header>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th rowspan="2">Month</th>
+                <th *ngFor="let g of groups" colspan="2">{{ groupHeader(g) }}</th>
+              </tr>
+              <tr>
+                <ng-container *ngFor="let g of groups">
+                  <th>{{ detail.left }}</th>
+                  <th>{{ detail.right }}</th>
+                </ng-container>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Allocation</td>
+                <ng-container *ngFor="let g of groups"><td colspan="2"><strong>{{ allocationFor(g) }}</strong></td></ng-container>
+              </tr>
+              <tr *ngFor="let m of detailMonths">
+                <td>{{ months[m - 1].label }}</td>
+                <ng-container *ngFor="let g of groups">
+                  <td>{{ number(componentRecord(g, detail.code, m)?.applicableCount, 0) }}</td>
+                  <td class="achievement-cell">
+                    {{ completedText(componentRecord(g, detail.code, m)) }}
+                    <div class="approval-icon" *ngIf="componentRecord(g, detail.code, m) as rec"
+                         [ngClass]="rec.status === 'Verified' ? 'approved' : 'unapproved'" [title]="rec.status">
+                      <i class="bi bi-check" *ngIf="rec.status === 'Verified'"></i>
+                      <i class="bi bi-x" *ngIf="rec.status !== 'Verified'"></i>
+                    </div>
+                  </td>
+                </ng-container>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="data-card" *ngIf="groupsWithNotes.length">
+        <header>
+          <div>
+            <h2><i class="bi bi-info-circle-fill me-2"></i>Calculation Notes</h2>
+            <p>Why a group is Incomplete or Pending, and data warnings.</p>
+          </div>
+        </header>
+        <div class="table-wrapper">
+          <table class="data-table notes-table">
+            <thead><tr><th>NW EE</th><th>Status</th><th>Issues</th><th>Warnings</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let g of groupsWithNotes">
+                <td>{{ groupHeaderById(g.engineerGroupId) }}</td>
+                <td><span class="status-pill" [ngClass]="statusClass(g.status)">{{ g.status }}</span></td>
+                <td class="text-start"><div *ngFor="let i of g.issues">{{ i }}</div></td>
+                <td class="text-start"><div *ngFor="let w of g.warnings">{{ w }}</div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </ng-container>
+
+    <!-- ===================== ALLOCATIONS ===================== -->
+    <ng-container *ngIf="tab === 'allocations'">
+      <article class="data-card">
+        <header>
+          <div>
+            <h2><i class="bi bi-diagram-3-fill me-2"></i>Engineer Group Area Allocation</h2>
+            <p>Effective from {{ months[month - 1].label }} {{ year }} · Saved total {{ number(allocationTotal, 4) }} · With changes {{ number(draftAllocationTotal, 4) }} · Missing {{ allocationMissing }} · {{ allocationComplete ? 'Complete' : 'Incomplete' }}
+              <button *ngIf="canEnterData" type="button" class="header-link" id="pac-save-allocations"
+                (click)="saveAllocations()" [disabled]="loading || allocationEdits.length === 0">Save {{ allocationEdits.length }} change(s)</button>
+            </p>
+          </div>
+          <ng-container *ngTemplateOutlet="periodFilters"></ng-container>
+        </header>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr><th>Cell</th><th>Workbook Label</th><th>NW EE</th><th>RTOM Area</th><th>Mapping</th><th>Allocation</th><th>Remarks</th><th>Effective From</th><th>Last Change</th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of allocationRows">
+                <td>{{ row.workbookAllocationCell }}</td>
+                <td>{{ row.workbookLabel }}</td>
+                <td>{{ groupHeaderById(row.engineerGroupId) }}</td>
+                <td>{{ row.leaCode || '—' }}</td>
+                <td><span class="status-pill" [ngClass]="row.mappingVerified ? 'status-complete' : 'status-incomplete'">{{ row.mappingVerified ? 'Verified' : 'Unverified' }}</span></td>
+                <td class="input-cell">
+                  <input *ngIf="row.canEdit; else readOnlyAllocation" type="number" min="0" step="0.0001" class="form-control form-control-sm"
+                    [attr.aria-label]="'Allocation for ' + row.engineerGroupCode"
+                    [(ngModel)]="row.input" (ngModelChange)="validateAllocation(row)" [class.is-invalid]="row.error">
+                  <ng-template #readOnlyAllocation>{{ row.allocationValue ?? 'Not entered' }}</ng-template>
+                  <div *ngIf="row.error" class="invalid-feedback d-block">{{ row.error }}</div>
+                </td>
+                <td class="input-cell">
+                  <input *ngIf="row.canEdit; else readOnlyRemarks" type="text" maxlength="500" class="form-control form-control-sm" [(ngModel)]="row.remarksInput">
+                  <ng-template #readOnlyRemarks>{{ row.remarks }}</ng-template>
+                </td>
+                <td>{{ row.effectiveYear ? (months[(row.effectiveMonth ?? 1) - 1].label + ' ' + row.effectiveYear) : '—' }}</td>
+                <td>{{ row.updatedBy || '—' }}</td>
+              </tr>
+              <tr *ngIf="!allocationRows.length"><td colspan="9">No engineer groups are configured.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </ng-container>
+
+    <!-- ===================== COMPONENT DATA ===================== -->
+    <ng-container *ngIf="tab === 'data'">
+      <div class="state" *ngIf="dataComponent?.scoringMethod === 'Pending'">
+        The scoring formula for {{ dataComponent?.name }} is pending business confirmation. Data can still be recorded.
+      </div>
+      <article class="data-card">
+        <header>
+          <div>
+            <h2><i class="bi bi-pencil-square me-2"></i>{{ dataComponent?.name || 'Component' }} Data Entry</h2>
+            <p>Saving stores a row as Draft; submit it when it is ready for verification. Preventive Maintenance is entered on the Power &amp; A/C admin screen.</p>
+          </div>
+          <ng-container *ngTemplateOutlet="periodFilters"></ng-container>
+        </header>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>NW EE</th>
+                <ng-container *ngIf="isIncidentComponent; else countHeaders"><th>Incidents</th></ng-container>
+                <ng-template #countHeaders><th>Applicable</th><th>Completed</th><th>Achievement %</th></ng-template>
+                <th>Remarks</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <ng-container *ngFor="let row of dataRows">
+              <tr>
+                <td>{{ groupHeader(row.group) }}</td>
+                <ng-container *ngIf="isIncidentComponent; else countCells">
+                  <td class="input-cell"><input type="number" min="0" step="1" class="form-control form-control-sm" [(ngModel)]="row.incidentCount" [disabled]="!rowEditable(row)" [attr.aria-label]="'Incidents for ' + row.group.code"></td>
+                </ng-container>
+                <ng-template #countCells>
+                  <td class="input-cell"><input type="number" min="0" class="form-control form-control-sm" [(ngModel)]="row.applicableCount" [disabled]="!rowEditable(row)" [attr.aria-label]="'Applicable for ' + row.group.code"></td>
+                  <td class="input-cell"><input type="number" min="0" class="form-control form-control-sm" [(ngModel)]="row.completedCount" [disabled]="!rowEditable(row)" [attr.aria-label]="'Completed for ' + row.group.code"></td>
+                  <td class="input-cell"><input type="number" min="0" max="100" class="form-control form-control-sm" [(ngModel)]="row.achievementPercent" [disabled]="!rowEditable(row)" [attr.aria-label]="'Achievement percent for ' + row.group.code"></td>
+                </ng-template>
+                <td class="input-cell"><input type="text" maxlength="500" class="form-control form-control-sm" [(ngModel)]="row.remarks" [disabled]="!rowEditable(row)"></td>
+                <td>
+                  <span class="status-pill" [ngClass]="statusClass(row.record?.status)">{{ row.record?.status ?? 'Not entered' }}</span>
+                  <small *ngIf="row.record?.reviewComment" class="d-block text-muted mt-1">{{ row.record?.reviewComment }}</small>
+                  <div *ngIf="row.error" class="invalid-feedback d-block">{{ row.error }}</div>
+                </td>
+                <td>
+                  <div class="row-actions">
+                    <button type="button" class="table-action save" (click)="saveRow(row)" [disabled]="row.saving || !rowEditable(row)">Save</button>
+                    <button type="button" class="table-action submit" (click)="submitRow(row)"
+                      [disabled]="row.saving || !row.record || (row.record.status !== 'Draft' && row.record.status !== 'Rejected')">Submit</button>
+                    <button type="button" class="table-action history" (click)="toggleHistory(row)" [disabled]="!row.record">History</button>
+                  </div>
+                </td>
+              </tr>
+              <tr *ngIf="row.record && history[row.record.id] as entries" class="history-row">
+                <td [attr.colspan]="isIncidentComponent ? 5 : 7">
+                  <table class="data-table history-table">
+                    <thead><tr><th>When</th><th>Action</th><th>Status</th><th>By</th><th>Comment</th></tr></thead>
+                    <tbody>
+                      <tr *ngFor="let h of entries">
+                        <td>{{ h.changedAt | date:'medium' }}</td>
+                        <td>{{ h.action }}</td>
+                        <td>{{ h.fromStatus || '—' }} → {{ h.toStatus || '—' }}</td>
+                        <td>{{ h.changedBy }}</td>
+                        <td>{{ h.comment || '—' }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+              </ng-container>
+              <tr *ngIf="!dataRows.length"><td colspan="7">You have no engineer groups assigned for data entry.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </ng-container>
+
+    <!-- ===================== REVIEW ===================== -->
+    <ng-container *ngIf="tab === 'review'">
+      <article class="data-card">
+        <header>
+          <div>
+            <h2><i class="bi bi-patch-check-fill me-2"></i>Submitted Records for Verification</h2>
+            <p>Records you entered or submitted yourself must be verified by someone else.</p>
+          </div>
+          <ng-container *ngTemplateOutlet="periodFilters"></ng-container>
+        </header>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr><th>NW EE</th><th>Component</th><th>Values</th><th>Remarks</th><th>Submitted</th><th>Comment</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let r of reviewRecords">
+                <td>{{ groupHeaderById(r.engineerGroupId) }}</td>
+                <td>{{ componentName(r.componentId) }}</td>
+                <td>
+                  <ng-container *ngIf="r.incidentCount !== null">{{ r.incidentCount }} incident(s)</ng-container>
+                  <ng-container *ngIf="r.applicableCount !== null">{{ r.completedCount }} / {{ r.applicableCount }}</ng-container>
+                  <ng-container *ngIf="r.achievementPercent !== null"> {{ r.achievementPercent }}%</ng-container>
+                </td>
+                <td>{{ r.remarks }}</td>
+                <td>{{ r.submittedBy }} <small class="d-block text-muted">{{ r.submittedAt | date:'short' }}</small></td>
+                <td class="input-cell"><input type="text" maxlength="500" class="form-control form-control-sm" [(ngModel)]="reviewComments[r.id]" placeholder="Required to reject"></td>
+                <td>
+                  <div class="row-actions">
+                    <button type="button" class="table-action save" (click)="review(r, true)" [disabled]="loading">Verify</button>
+                    <button type="button" class="table-action reject" (click)="review(r, false)" [disabled]="loading">Reject</button>
+                  </div>
+                </td>
+              </tr>
+              <tr *ngIf="!reviewRecords.length"><td colspan="7">No submitted records for {{ months[month - 1].label }} {{ year }}.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </ng-container>
+  </section>
+</div>

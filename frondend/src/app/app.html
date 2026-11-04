@@ -1,0 +1,59 @@
+<main class="app-container">
+  <header class="app-header" *ngIf="!isLoginPage">
+    <div class="header-content">
+      <div class="header-left">
+        <div class="logo-section" (click)="navigateToDashboard()">
+          <div class="logo">
+            <img src="assets/slt-logo.svg" alt="SLT Mobitel logo" class="logo-img" />
+          </div>
+        </div>
+        <app-header-title [title]="title()"></app-header-title>
+      </div>
+      <nav class="main-nav" *ngIf="userName() && userName() !== 'Guest'">
+        <app-dashboard-button></app-dashboard-button>
+        <app-q1-button></app-q1-button>
+
+
+        <!-- TEMPORARILY HIDDEN: Overall KPI button
+        <app-overall-kpi-dropdown [options]="overallOptions" (closeMenu)="closeMenus()"
+                                  (selection)="handleSelection($event)"></app-overall-kpi-dropdown>
+        -->
+
+        <app-analytics-button></app-analytics-button>
+
+        <app-platform-kpi-dropdown [options]="platformOptions" [isOpen]="openMenu() === 'platform'"
+                                   (toggleMenu)="toggleMenu('platform')" (closeMenu)="closeMenus()"
+                                   (selection)="handleSelection($event)"></app-platform-kpi-dropdown>
+
+        <app-admin-dropdown *appHasRole="['Admin', 'SuperAdmin', 'PlatformAdmin', 'User']" [options]="adminOptions"
+                            [isOpen]="openMenu() === 'admin'" (toggleMenu)="toggleMenu('admin')" (closeMenu)="closeMenus()"
+                            (selection)="handleSelection($event)"></app-admin-dropdown>
+
+        
+
+          <div class="user-profile-section" (click)="navigateToUserManagement()">
+            <span class="profile-icon">👤</span>
+            <div class="profile-details">
+              <span class="profile-name">{{ userName() }}</span>
+              <span class="profile-role" *ngIf="userRole()">{{ userRole() }}</span>
+            </div>
+          </div>
+
+          <app-logout-button (logout)="logout()">
+          </app-logout-button>
+
+       
+      </nav>
+    </div>
+  </header>
+
+  <section class="main-content">
+    <router-outlet></router-outlet>
+  </section>
+
+  <footer class="app-footer" *ngIf="!isLoginPage">
+    <div class="footer-content">
+      <p>© 2025 KPI Monitor Website| SOC and SM. All rights reserved.</p>
+    </div>
+  </footer>
+</main>

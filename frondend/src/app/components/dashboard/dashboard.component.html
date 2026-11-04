@@ -1,0 +1,251 @@
+<!-- File: dashboard.component.html
+     Description: KPI dashboard template
+     Purpose: Render regions with KPI meters and performance indicators -->
+
+<!-- Dashboard container -->
+<div class="dashboard" *ngIf="!loading; else loadingState">
+  <div class="dashboard-header">
+    <div class="header-left">
+      <h1>Performance Dashboard</h1>
+      <p class="subtitle">
+        Regional KPI achievement and metrics summary for {{ currentPeriodLabel }} {{ selectedYear }}
+      </p>
+    </div>
+
+    <!-- All period controls stay together on the right side of the header. -->
+    <div class="header-controls">
+      <!-- Quarter buttons appear before the month/year filter as requested. -->
+      <div class="quarter-actions" role="group" aria-label="Quarter calculations">
+        <button class="quarter-btn" type="button" [class.active]="activeQuarter === 'Q2'"
+          [attr.aria-pressed]="activeQuarter === 'Q2'" (click)="calculateQuarter('Q2')"
+          [disabled]="loading || calculating">
+          Q2 Calculate
+        </button>
+        <button class="quarter-btn" type="button" [class.active]="activeQuarter === 'Q3'"
+          [attr.aria-pressed]="activeQuarter === 'Q3'" (click)="calculateQuarter('Q3')"
+          [disabled]="loading || calculating">
+          Q3 Calculate
+        </button>
+      </div>
+
+      <div class="header-filters">
+        <div class="filter-group">
+          <label for="month-select">Month:</label>
+          <select id="month-select" class="filter-select" [(ngModel)]="selectedMonth"
+            (ngModelChange)="onMonthChange($event)">
+            <option *ngFor="let month of monthOptions" [ngValue]="month.value">
+              {{ month.label }}
+            </option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="year-select">Year:</label>
+          <select id="year-select" class="filter-select" [(ngModel)]="selectedYear"
+            (ngModelChange)="onYearChange($event)">
+            <option *ngFor="let year of yearOptions" [ngValue]="year">
+              {{ year }}
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Show the button only after the user has selected a month/year. -->
+        <button *ngIf="showCalculateButton && !loading" class="calculate-btn" type="button" (click)="calculate()" [disabled]="loading || calculating">
+          {{ calculating ? 'Calculating...' : 'Calculate' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HEADER / STATS SECTION (commented out per request) -->
+  <!--
+  <section class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon stat-icon--blue">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M8 8h8M8 12h8M8 16h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">Regions</span>
+        <span class="stat-value">{{ regionCount }}</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon--teal">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="9" cy="9" r="4" stroke="currentColor" stroke-width="1.8"/>
+          <circle cx="15" cy="15" r="4" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M5 19L9 15M15 9L19 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">Network Engineers</span>
+        <span class="stat-value">{{ engineerCount }}</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon--lavender">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">Provinces</span>
+        <span class="stat-value">{{ provinceCount }}</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon stat-icon--mint">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="8" width="16" height="12" rx="1" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M8 6V4M16 6V4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M8 12h8M8 16h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="stat-content">
+        <span class="stat-label">LEA</span>
+        <span class="stat-value">{{ leaCount }}</span>
+      </div>
+    </div>
+  </section>
+  -->
+
+  <!-- Regions are grouped cards; each meter represents one normalized operational area. -->
+  <!-- REGIONS & METERS SECTION -->
+  <div class="percentage-note">All values shown are percentages (%)</div>
+  <div class="regions-wrapper">
+    <div class="region-card" *ngFor="let region of regions; trackBy: trackByRegion; let idx = index"
+      (mouseenter)="regionHoverStates[idx] = true" (mouseleave)="regionHoverStates[idx] = false">
+      <!-- Region title with subtle left accent -->
+      <div class="region-title">
+        <h3>{{ formatRegionTitle(region.title) }}</h3>
+      </div>
+
+      <!-- Circular meters -->
+      <div class="meters-row">
+        <div class="meter" *ngFor="let meter of region.meters; trackBy: trackByMeter"
+          (mouseenter)="meterHoverStates[region.title + meter.code] = true"
+          (mouseleave)="meterHoverStates[region.title + meter.code] = false" (click)="openMeterDetails(region, meter)">
+          <div class="meter-progress">
+            <!-- Dynamic conic gradient background (set via style binding) -->
+            <div class="meter-circle" [style.background]="getCircularProgressBackground(meter, region.meters)">
+              <span class="meter-percent" [style.color]="getColorForValue(valueForMeter(meter))">{{
+                valueForMeter(meter).toFixed(1) }}</span>
+            </div>
+          </div>
+          <div class="meter-label">
+            <span class="meter-engineer">{{ getEngineerForMeter(meter) }}</span>
+            <span class="meter-area">({{ meter.label }})</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LOADING / ERROR STATE -->
+<ng-template #loadingState>
+  <div class="message-screen">
+    <div class="message-card" *ngIf="loading">
+      <div class="spinner"></div>
+      <p>Loading dashboard…</p>
+    </div>
+    <div class="message-card" *ngIf="!loading && error">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#0057a6">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" />
+        <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+      </svg>
+      <p>{{ error }}</p>
+    </div>
+  </div>
+</ng-template>
+
+<!-- The modal combines area metadata with the KPI rows used to produce its overall score. -->
+<!-- DETAILS MODAL (PASTEL, CLEAN) -->
+<div class="modal-overlay" *ngIf="selectedDetails" (click)="closeDetails()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div>
+        <h2>{{ selectedDetails.displayName }}</h2>
+        <div class="meta-badge">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#02b28c">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="currentColor"
+              stroke-width="1.8" />
+            <circle cx="12" cy="9" r="2" stroke="currentColor" stroke-width="1.8" />
+          </svg>
+          <span>{{ selectedDetails.region }} · {{ selectedDetails.province }}</span>
+        </div>
+      </div>
+      <button class="close-btn" (click)="closeDetails()">✕</button>
+    </div>
+
+    <!-- KPI summary cards -->
+    <div class="summary-grid">
+      <div class="summary-item">
+        <span class="summary-label">Network Engineer</span>
+        <strong class="summary-value">
+          <div class="engineer-code">{{ selectedDetails.networkEngineer }}</div>
+        </strong>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Overall KPI</span>
+        <strong class="summary-value" style="color: #02b28c;">{{ selectedDetails.overallPercent | number:'1.2-2'
+          }}%</strong>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Max Points</span>
+        <strong class="summary-value">{{ selectedDetails.totalMaximumPoints | number:'1.2-2' }}</strong>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Points Achieved</span>
+        <strong class="summary-value">{{ selectedDetails.totalPointsAchieved | number:'1.2-2' }}</strong>
+      </div>
+    </div>
+
+    <!-- Legend inside modal -->
+    <div class="legend-container" style="margin-bottom: 12px; margin-top: 8px;">
+      <div class="legend-item">
+        <span class="legend-dot fulfillment-dot"></span>
+        <span class="legend-text">Service Fulfillment</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot enterprise-dot"></span>
+        <span class="legend-text">Enterprise</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot other-operator-dot"></span>
+        <span class="legend-text">Other Operator</span>
+      </div>
+    </div>
+
+    <!-- KPIs table (compact, readable) -->
+    <div class="kpi-table" *ngIf="selectedDetails.kpiRows.length; else emptyKpi">
+      <div class="kpi-table-header">
+        <span>KPI</span>
+        <span>Achieved</span>
+        <span>Max points</span>
+        <span>Points</span>
+      </div>
+      <div class="kpi-table-row" *ngFor="let row of selectedDetails.kpiRows" [ngClass]="getKpiRowClass(row)">
+        <div class="row-indicator" *ngIf="row.category">
+          <span *ngIf="row.category.toLowerCase().includes('enterprise') || row.category.toLowerCase().includes('enteprise')" class="indicator-badge enterprise">E</span>
+          <span *ngIf="row.category.toLowerCase().includes('other operator') || row.category.toLowerCase().includes('operator')" class="indicator-badge other">O</span>
+        </div>
+        <span class="kpi-name">{{ row.kpiName || 'KPI #' + row.kpiDefinitionId }}</span>
+        <span>{{ row.achievedKpi | number:'1.2-2' }}%</span>
+        <span>{{ row.maximumPointsPerKpi | number:'1.2-2' }}</span>
+        <span>{{ row.pointsAchieved | number:'1.2-2' }}</span>
+      </div>
+    </div>
+    <ng-template #emptyKpi>
+      <div class="empty-state">
+        <p>No KPI details available for this item.</p>
+      </div>
+    </ng-template>
+  </div>
+</div>

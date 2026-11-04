@@ -1,0 +1,251 @@
+.page-container {
+  min-height: calc(100vh - 110px);
+  padding: 1.5rem 1.5rem 1rem;
+  background: #f8f9fb;
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.page-heading {
+  flex: 0 1 400px;
+  min-width: 320px;
+}
+
+.power-ac-filters {
+  flex: 1 1 760px;
+  min-width: 0;
+  margin: 0;
+  padding: 12px 20px;
+}
+
+@media (max-width: 1399px) {
+  .page-heading {
+    flex: 1 1 320px;
+  }
+
+  .power-ac-filters {
+    order: 3;
+    flex: 1 1 100%;
+  }
+
+  .header-actions {
+    order: 2;
+  }
+}
+
+@media (max-width: 575px) {
+  .page-heading {
+    min-width: 0;
+  }
+
+  .power-ac-filters {
+    padding: 14px;
+  }
+}
+
+.page-header h1 {
+  margin: 0 0 .5rem;
+  color: #0057a6;
+  font-size: 2.1rem;
+  font-weight: 600;
+}
+
+.page-subtitle {
+  margin: 0;
+  color: #6b7b8c;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+}
+
+.export-btn {
+  padding: .65rem 1.35rem;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(110deg, #459fe0, #15966a);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 8px 20px #137d6b33;
+}
+
+.export-btn:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.filters-form {
+  padding: 18px 24px;
+  border: 1px solid #1e4381;
+  border-radius: 28px;
+  background: linear-gradient(135deg, #5c9ee4, #2566c7);
+  box-shadow: 0 14px 30px #2e4b8a40;
+}
+
+.filters-form .form-label {
+  margin-bottom: 5px;
+  color: #f9fbff;
+  font-size: .92rem;
+  font-weight: 600;
+}
+
+.filters-form .form-select {
+  height: 42px;
+  border: 2px solid #263e69;
+  border-radius: 999px;
+  background-color: #edf0f5;
+}
+
+.filters-form .form-select:disabled {
+  background-color: #bdcde5;
+}
+
+.selected-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 13px 16px;
+  border: 1px dashed #4a90e2;
+  border-radius: 16px;
+  background: #eef5ff;
+}
+
+.filter-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid #d4def0;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 4px 10px #0f172a12;
+}
+
+.filter-label {
+  color: #64748b;
+  font-size: .78rem;
+  text-transform: uppercase;
+}
+
+.filter-value {
+  color: #0057a6;
+  font-weight: 700;
+}
+
+.data-card {
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 8px 22px #0f172a12;
+}
+
+.data-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 20px;
+  background: #126df0;
+  color: #fff;
+}
+
+.data-card-header h2 {
+  margin: 0;
+  font-size: 1.08rem;
+  font-weight: 600;
+}
+
+.data-card-header span {
+  color: #e3efff;
+  font-size: .92rem;
+  font-weight: 600;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.data-table th {
+  padding: 12px 10px;
+  border-right: 1px solid #ffffff66;
+  background: #0057a6;
+  color: #fff;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 11px 12px;
+  border: 1px solid #e2e8f0;
+  color: #1f2937;
+}
+
+.data-table tbody tr:nth-child(even) {
+  background: #f5f8fc;
+}
+
+.data-table tbody tr:hover {
+  background: #eef5ff;
+}
+
+.verify-button,
+.verify-label {
+  display: inline-block;
+  padding: 5px 11px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: .82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.verify-button {
+  cursor: pointer;
+}
+
+.verified {
+  border-color: #a7e8c0;
+  background: #edfff3;
+  color: #168348;
+}
+
+.not-verified {
+  border-color: #f3d28c;
+  background: #fff8e7;
+  color: #9a6700;
+}
+
+.empty-state {
+  padding: 2.5rem !important;
+  color: #64748b !important;
+  text-align: center;
+}
+
+@media (max-width: 767.98px) {
+  .page-container {
+    padding: 1rem .75rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.7rem;
+  }
+
+  .filters-form {
+    padding: 16px;
+    border-radius: 20px;
+  }
+}

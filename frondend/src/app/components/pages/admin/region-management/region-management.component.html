@@ -1,0 +1,156 @@
+<!-- Renders region creation, sortable region data, and inline row editing. -->
+<div class="page-container">
+  <div class="page-header">
+    <h1>{{ pageTitle }}</h1>
+  </div>
+
+  <div class="dashboard-container">
+    <div class="form-container">
+      <div class="form-header">
+        <h2>Add new region</h2>
+        <p class="form-sub">Manage region details used in reports</p>
+      </div>
+
+      <form #regionForm="ngForm" (ngSubmit)="onSubmit(regionForm)" class="kpi-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="region">Region</label>
+            <input id="region" name="region" type="text" [(ngModel)]="formData.region" required placeholder="Region" />
+          </div>
+
+          <div class="form-group">
+            <label for="province">Province</label>
+            <input id="province" name="province" type="text" [(ngModel)]="formData.province" required placeholder="Province" />
+          </div>
+
+          <div class="form-group">
+            <label for="networkEngineer">Network Engineer</label>
+            <input id="networkEngineer" name="networkEngineer" type="text" [(ngModel)]="formData.networkengineer" required placeholder="Network Engineer" />
+          </div>
+
+          <div class="form-group">
+            <label for="engName">Engineer Name</label>
+            <input id="engName" name="engName" type="text" [(ngModel)]="formData.engname" required placeholder="Engineer Name" />
+          </div>
+
+          <div class="form-group">
+            <label for="lea">LEA</label>
+            <input id="lea" name="lea" type="text" [(ngModel)]="formData.leacode" required placeholder="LEA" />
+          </div>
+
+          <div class="form-actions-inline">
+            <div class="form-actions-right">
+              <button class="btn-cancel" type="button" (click)="resetForm()">Reset</button>
+              <button class="btn-close-form" type="button" (click)="closeForm()">Close</button>
+              <button class="btn-submit" type="submit" [disabled]="isSubmitting">{{ isSubmitting ? 'Processing...' : 'Add' }}</button>
+            </div>
+          </div>
+        </div>
+      </form>
+
+      <div *ngIf="error" class="error-message">{{ error }}</div>
+      <div *ngIf="success" class="success-message">{{ success }}</div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="kpi-table region-data-table">
+        <thead>
+          <tr>
+            <th (click)="requestSort('region')">
+              Region {{ getSortIndicator("region") }}
+            </th>
+            <th (click)="requestSort('province')">
+              Province {{ getSortIndicator("province") }}
+            </th>
+            <th (click)="requestSort('networkengineer')">
+              Network Engineer {{ getSortIndicator("networkengineer") }}
+            </th>
+            <th (click)="requestSort('leacode')">
+              LEA {{ getSortIndicator("leacode") }}
+            </th>
+            <th (click)="requestSort('engname')">
+              Engineer Name {{ getSortIndicator("engname") }}
+            </th>
+            <th class="actions-col">Actions</th>
+
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngIf="sortedRegions.length === 0">
+            <td colspan="6" class="no-data">No region data available</td>
+          </tr>
+
+          <tr *ngFor="let r of sortedRegions">
+            <!-- Region -->
+            <td>
+              <input *ngIf="isEditingRow(r); else regionView"
+                class="edit-input" type="text"
+                [(ngModel)]="rowEdits['region']"
+                [ngModelOptions]="{ standalone: true }" />
+              <ng-template #regionView>{{ r.region || '—' }}</ng-template>
+            </td>
+
+            <!-- Province -->
+            <td>
+              <input *ngIf="isEditingRow(r); else provinceView"
+                class="edit-input" type="text"
+                [(ngModel)]="rowEdits['province']"
+                [ngModelOptions]="{ standalone: true }" />
+              <ng-template #provinceView>{{ r.province || '—' }}</ng-template>
+            </td>
+
+            <!-- Network Engineer -->
+            <td>
+              <input *ngIf="isEditingRow(r); else neView"
+                class="edit-input" type="text"
+                [(ngModel)]="rowEdits['networkengineer']"
+                [ngModelOptions]="{ standalone: true }" />
+              <ng-template #neView>{{ r.networkengineer || '—' }}</ng-template>
+            </td>
+
+            <!-- LEA -->
+            <td>
+              <input *ngIf="isEditingRow(r); else leaView"
+                class="edit-input" type="text"
+                [(ngModel)]="rowEdits['leacode']"
+                [ngModelOptions]="{ standalone: true }" />
+              <ng-template #leaView>{{ r.leacode || '—' }}</ng-template>
+            </td>
+
+            <!-- Engineer Name -->
+            <td>
+              <input *ngIf="isEditingRow(r); else engNameView"
+                class="edit-input" type="text"
+                [(ngModel)]="rowEdits['engname']"
+                [ngModelOptions]="{ standalone: true }" />
+              <ng-template #engNameView>{{ r.engname || '—' }}</ng-template>
+            </td>
+
+            <!-- Actions -->
+            <td class="actions-col">
+              <div class="action-buttons">
+                <ng-container *ngIf="isEditingRow(r); else editActions">
+                  <button type="button" class="icon-btn save-btn" (click)="saveRow(r)" title="Save">
+                    <span class="material-symbols-outlined">save</span>
+                  </button>
+                  <button type="button" class="icon-btn cancel-btn" (click)="cancelRowEdit()" title="Cancel">
+                    <span class="material-symbols-outlined">close</span>
+                  </button>
+                </ng-container>
+                <ng-template #editActions>
+                  <button type="button" class="icon-btn edit-row-btn" (click)="startRowEdit(r)" title="Edit">
+                    <span class="material-symbols-outlined">edit</span>
+                  </button>
+                  <button type="button" class="icon-btn delete-btn" (click)="handleDelete(r.id)" title="Delete">
+                    <span class="material-symbols-outlined">delete</span>
+                  </button>
+                </ng-template>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

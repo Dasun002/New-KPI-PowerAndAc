@@ -1,0 +1,144 @@
+<!-- Renders strategic KPI definition editing, weightage previews, and the definition table. -->
+<div class="page-container">
+  <div class="dashboard-container">
+    <div class="page-header">
+      <h1>{{ pageTitle }}</h1>
+    </div>
+
+    <div class="form-container" *ngIf="isAdmin">
+      <div class="form-header">
+        <h2>{{ editingId ? 'Update KPI Row' : 'Create KPI Row' }}</h2>
+        <p class="form-sub">Manage Strategic KPI records</p>
+      </div>
+
+      <form class="kpi-form" [formGroup]="form" (ngSubmit)="onSubmit()">
+        <div class="form-row">
+          <div class="form-group">
+            <input type="text" formControlName="perspectives" placeholder="Perspectives" />
+          </div>
+
+          <div class="form-group">
+            <input type="text" formControlName="category" placeholder="Category" />
+          </div>
+
+          <div class="form-group">
+            <input
+              type="text"
+              formControlName="strategicObjectives"
+              placeholder="Strategic Objectives"
+            />
+          </div>
+
+          <div class="form-group">
+            <input
+              type="text"
+              formControlName="keyPerformanceIndicators"
+              placeholder="Key Performance Indicators"
+            />
+          </div>
+
+          <div class="form-group">
+            <input type="text" formControlName="unit" placeholder="Unit" />
+          </div>
+
+          <div class="form-group span-2">
+            <textarea formControlName="descriptionOfKPI" placeholder="Description of KPI"></textarea>
+          </div>
+
+          <div class="form-group">
+            <input type="text" formControlName="engineerResponsible" placeholder="Engineer Responsible" />
+          </div>
+
+          <div class="form-group">
+            <input type="text" formControlName="contactNo" placeholder="Contact No" />
+          </div>
+
+          <div class="weightage-row">
+            <div class="form-group">
+              <label>Points Applicable *</label>
+              <input type="number" formControlName="pointsApplicable" placeholder="0" />
+            </div>
+
+            <div class="form-group">
+              <label>Total Points *</label>
+              <input type="number" formControlName="totalPoints" placeholder="36000" />
+            </div>
+
+            <div class="button-group">
+              <button type="button" class="secondary-btn total-points-btn" (click)="saveTotalPoints()">
+                Save
+              </button>
+            </div>
+
+            <div class="form-group">
+              <label>Weightage (%) *</label>
+              <div class="weightage-display-box">{{ calculateLiveWeightage() }}</div>
+            </div>
+
+            <div class="button-group">
+              <button type="submit" class="btn-submit" [disabled]="form.invalid || saving">
+                {{ editingId ? 'Update Record' : 'Add Record' }}
+              </button>
+            </div>
+          </div>
+
+
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" *ngIf="editingId" (click)="onCancelEdit()">
+            Cancel Edit
+          </button>
+        </div>
+
+
+      </form>
+    </div>
+
+    <div class="table-wrapper">
+      <div class="table-responsive">
+        <div class="state" *ngIf="loading">Loading records...</div>
+
+        <table class="kpi-table" *ngIf="!loading && records.length">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Perspectives</th>
+              <th>Category</th>
+              <th>Objectives</th>
+              <th>KPI</th>
+              <th>Unit</th>
+              <th>Weightage (%)</th>
+              <th>Points</th>
+              <th>Engineer Responsible</th>
+              <th>Contact No</th>
+              <th *ngIf="isAdmin">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let record of records; let i = index">
+              <td>{{ i + 1 }}</td>
+              <td>{{ record.perspectives }}</td>
+              <td>{{ record.category }}</td>
+              <td>{{ record.strategicObjectives }}</td>
+              <td>{{ record.keyPerformanceIndicators }}</td>
+              <td>{{ record.unit }}</td>
+              <td>{{ getComputedWeightageForRecord(record) }}</td>
+              <td>{{ record.pointsApplicable }}</td>
+              <td>{{ record.engineerResponsible }}</td>
+              <td>{{ record.contactNo }}</td>
+              <td class="actions-col" *ngIf="isAdmin">
+                <div class="action-buttons">
+                  <button type="button" class="btn-edit" (click)="onEdit(record)">Edit</button>
+                  <button type="button" class="btn-delete" (click)="onDelete(record.id)">Delete</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="no-data" *ngIf="!loading && !records.length">No KPI records available.</div>
+      </div>
+    </div>
+  </div>
+</div>
