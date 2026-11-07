@@ -50,7 +50,7 @@ namespace backend.Controllers
         {
             var code = dto.Code.Trim().ToUpperInvariant();
             var name = dto.Name.Trim();
-            var dataSource = dto.DataSource.Trim();
+            var dataSource = PowerAcDataSources.PowerAndAC;
             if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
                 return BadRequest(new { message = "Code and KPI name are required." });
             if (dataSource is not (PowerAcDataSources.PowerAndAC or PowerAcDataSources.ComponentResult))
@@ -170,6 +170,10 @@ namespace backend.Controllers
             var component = await _db.PowerAcComponents.FirstOrDefaultAsync(c => c.Id == id);
             if (component is null) return NotFound(new { message = "Component not found." });
 
+            var name = dto.Name.Trim();
+            if (string.IsNullOrWhiteSpace(name))
+                return BadRequest(new { message = "KPI name is required." });
+
             var method = PowerAcScoringMethods.All.FirstOrDefault(m => string.Equals(m, dto.ScoringMethod?.Trim(), StringComparison.OrdinalIgnoreCase));
             if (method is null || !PowerAcRules.AllowedScoringMethods(component).Contains(method))
                 return BadRequest(new { message = $"Scoring method '{dto.ScoringMethod}' is not allowed for {component.Code}." });
@@ -181,9 +185,6 @@ namespace backend.Controllers
                 return BadRequest(new { message = "A Pending scoring method cannot be approved." });
             if (method == PowerAcScoringMethods.TargetScaled && dto.TargetValue <= 0m)
                 return BadRequest(new { message = "TargetScaled scoring needs a target above zero." });
-            if (await PowerAcRules.HasCalculatedResultsFromAsync(_db, dto.EffectiveYear, dto.EffectiveMonth))
-                return Conflict(new { message = "Results have already been calculated for this effective month or later. Choose a later effective month so earlier results stay reproducible." });
-
             var user = PowerAcAccessService.CurrentUserName(User);
             var now = DateTime.UtcNow;
             var version = await _db.PowerAcComponentVersions.FirstOrDefaultAsync(v =>
@@ -237,9 +238,33 @@ namespace backend.Controllers
             }
 
             component.IsActive = dto.IsActive;
+            component.Name = name;
+            component.DataSource = PowerAcDataSources.PowerAndAC;
             component.SortOrder = dto.SortOrder;
             component.UpdatedAt = now;
             component.UpdatedBy = user;
+            await _db.SaveChangesAsync();
+
+            var weight = await _db.PowerAcComponentWeights.FirstOrDefaultAsync(w =>
+                w.ComponentId == component.Id
+                && w.EffectiveYear == dto.EffectiveYear
+                && w.EffectiveMonth == dto.EffectiveMonth);
+            if (weight is null)
+            {
+                _db.PowerAcComponentWeights.Add(new PowerAcComponentWeight
+                {
+                    ComponentId = component.Id,
+                    EffectiveYear = (short)dto.EffectiveYear,
+                    EffectiveMonth = (byte)dto.EffectiveMonth,
+                    WeightPercent = dto.WeightPercent,
+                    CreatedAt = now,
+                    CreatedBy = user
+                });
+            }
+            else
+            {
+                weight.WeightPercent = dto.WeightPercent;
+            }
             await _db.SaveChangesAsync();
 
             var details = new { component = component.Code, version.EffectiveYear, version.EffectiveMonth, version.TargetValue, version.ScoringMethod, version.ScoringParameter, dto.IsActive };
@@ -656,7 +681,7 @@ namespace backend.Controllers
             Name = c.Name,
             TargetValue = c.TargetValue,
             TargetUnit = c.TargetUnit,
-            DataSource = c.DataSource,
+            DataSource = PowerAcDataSources.PowerAndAC,
             ScoringMethod = c.ScoringMethod,
             ScoringParameter = c.ScoringParameter,
             ScoringApproved = c.ScoringApproved,

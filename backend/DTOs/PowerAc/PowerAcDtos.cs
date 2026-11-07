@@ -68,6 +68,12 @@ namespace backend.DTOs.PowerAc
 
     public class UpdatePowerAcComponentDto
     {
+        [Required, StringLength(150)]
+        public string Name { get; set; } = string.Empty;
+
+        [Required, StringLength(30)]
+        public string DataSource { get; set; } = "PowerAndAC";
+
         // The scoring version applies from this month onwards.
         [Range(2000, 9999)]
         public int EffectiveYear { get; set; }
@@ -80,6 +86,9 @@ namespace backend.DTOs.PowerAc
 
         [Range(0, 100000)]
         public decimal TargetValue { get; set; }
+
+        [Range(0, 100)]
+        public decimal WeightPercent { get; set; }
 
         [Required, StringLength(40)]
         public string ScoringMethod { get; set; } = string.Empty;

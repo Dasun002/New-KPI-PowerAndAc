@@ -191,7 +191,16 @@ export class PowerAcConfigComponent implements OnInit {
   editComponent(c: ComponentEdit): void {
     // A new version defaults to the current month; earlier months keep their own version.
     const now = new Date();
-    this.componentForm = { ...c, saving: false, error: '', effectiveYear: now.getFullYear(), effectiveMonth: now.getMonth() + 1, approvalNote: '' };
+    this.componentForm = {
+      ...c,
+      dataSource: 'PowerAndAC',
+      weightPercent: c.currentWeightPercent,
+      saving: false,
+      error: '',
+      effectiveYear: now.getFullYear(),
+      effectiveMonth: now.getMonth() + 1,
+      approvalNote: ''
+    };
     this.message = '';
   }
 
@@ -258,17 +267,20 @@ export class PowerAcConfigComponent implements OnInit {
           name: c.name.trim(),
           targetValue: Number(c.targetValue),
           targetUnit: c.targetUnit.trim(),
-          dataSource: c.dataSource,
+          dataSource: 'PowerAndAC',
           weightPercent: Number(c.weightPercent),
           effectiveYear: Number(c.effectiveYear ?? now.getFullYear()),
           effectiveMonth: Number(c.effectiveMonth ?? now.getMonth() + 1),
           sortOrder: Number(c.sortOrder)
         })
       : this.api.updateComponent(c.id, {
+          name: c.name.trim(),
+          dataSource: 'PowerAndAC',
           effectiveYear: Number(c.effectiveYear ?? now.getFullYear()),
           effectiveMonth: Number(c.effectiveMonth ?? now.getMonth() + 1),
           approvalNote: c.approvalNote?.trim() || null,
           targetValue: Number(c.targetValue),
+          weightPercent: Number(c.weightPercent),
           scoringMethod: c.scoringMethod,
           scoringParameter: c.scoringParameter === null || (c.scoringParameter as unknown) === '' ? null : Number(c.scoringParameter),
           scoringApproved: c.scoringApproved,

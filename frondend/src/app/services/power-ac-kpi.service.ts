@@ -319,8 +319,9 @@ export class PowerAcKpiService {
 
   // Creates or updates the scoring version effective from effectiveYear/effectiveMonth.
   updateComponent(id: number, body: {
+    name: string; dataSource: string;
     effectiveYear: number; effectiveMonth: number; approvalNote?: string | null;
-    targetValue: number; scoringMethod: string; scoringParameter: number | null;
+    targetValue: number; weightPercent: number; scoringMethod: string; scoringParameter: number | null;
     scoringApproved: boolean; isActive: boolean; sortOrder: number;
   }): Observable<PowerAcComponent> {
     return this.http.put<PowerAcComponent>(`${this.base}/config/components/${id}`, body);

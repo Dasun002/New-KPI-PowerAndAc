@@ -97,7 +97,7 @@
             </div>
             <div class="form-group">
               <label for="comp-source">Category</label>
-              <input id="comp-source" type="text" maxlength="30" [(ngModel)]="c.dataSource" placeholder="Category">
+              <input id="comp-source" type="text" value="PowerAndAC" readonly>
             </div>
             <div class="form-group">
               <label for="comp-target">Target</label>
@@ -129,7 +129,7 @@
             </tr>
             <tr *ngFor="let c of components">
               <td>{{ c.name }} <small class="d-block text-muted">{{ c.code }}</small></td>
-              <td>{{ c.dataSource }}</td>
+              <td>PowerAndAC</td>
               <td>{{ c.targetValue }} {{ c.targetUnit }}</td>
               <td>{{ c.currentWeightPercent ?? '—' }}</td>
               <td class="actions-col">
