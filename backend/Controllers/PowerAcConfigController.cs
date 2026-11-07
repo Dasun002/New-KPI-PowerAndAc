@@ -55,49 +55,87 @@ namespace backend.Controllers
                 return BadRequest(new { message = "Code and KPI name are required." });
             if (dataSource is not (PowerAcDataSources.PowerAndAC or PowerAcDataSources.ComponentResult))
                 return BadRequest(new { message = "Data source must be PowerAndAC or ComponentResult." });
-            if (await _db.PowerAcComponents.AnyAsync(c => c.Code == code))
+            var component = await _db.PowerAcComponents.FirstOrDefaultAsync(c => c.Code == code);
+            if (component?.IsActive == true)
                 return Conflict(new { message = $"A component with code '{code}' already exists." });
 
             var now = DateTime.UtcNow;
             var user = PowerAcAccessService.CurrentUserName(User);
-            var component = new PowerAcComponent
+            if (component is null)
             {
-                Code = code,
-                Name = name,
-                TargetValue = dto.TargetValue,
-                TargetUnit = dto.TargetUnit.Trim(),
-                DataSource = dataSource,
-                ScoringMethod = PowerAcScoringMethods.Pending,
-                ScoringApproved = false,
-                SortOrder = dto.SortOrder,
-                IsActive = true,
-                CreatedAt = now,
-                CreatedBy = user
-            };
-            _db.PowerAcComponents.Add(component);
+                component = new PowerAcComponent
+                {
+                    Code = code,
+                    CreatedAt = now,
+                    CreatedBy = user
+                };
+                _db.PowerAcComponents.Add(component);
+            }
+
+            component.Name = name;
+            component.TargetValue = dto.TargetValue;
+            component.TargetUnit = dto.TargetUnit.Trim();
+            component.DataSource = dataSource;
+            component.ScoringMethod = PowerAcScoringMethods.Pending;
+            component.ScoringParameter = null;
+            component.ScoringApproved = false;
+            component.ApprovedBy = null;
+            component.ApprovedAt = null;
+            component.SortOrder = dto.SortOrder;
+            component.IsActive = true;
+            component.UpdatedAt = now;
+            component.UpdatedBy = user;
             await _db.SaveChangesAsync();
 
-            var version = new PowerAcComponentVersion
+            var version = await _db.PowerAcComponentVersions.FirstOrDefaultAsync(v =>
+                v.ComponentId == component.Id
+                && v.EffectiveYear == dto.EffectiveYear
+                && v.EffectiveMonth == dto.EffectiveMonth);
+            if (version is null)
             {
-                ComponentId = component.Id,
-                EffectiveYear = (short)dto.EffectiveYear,
-                EffectiveMonth = (byte)dto.EffectiveMonth,
-                TargetValue = dto.TargetValue,
-                ScoringMethod = PowerAcScoringMethods.Pending,
-                ScoringApproved = false,
-                CreatedAt = now,
-                CreatedBy = user
-            };
-            _db.PowerAcComponentVersions.Add(version);
-            _db.PowerAcComponentWeights.Add(new PowerAcComponentWeight
+                version = new PowerAcComponentVersion
+                {
+                    ComponentId = component.Id,
+                    EffectiveYear = (short)dto.EffectiveYear,
+                    EffectiveMonth = (byte)dto.EffectiveMonth,
+                    CreatedAt = now,
+                    CreatedBy = user
+                };
+                _db.PowerAcComponentVersions.Add(version);
+            }
+            else
             {
-                ComponentId = component.Id,
-                EffectiveYear = (short)dto.EffectiveYear,
-                EffectiveMonth = (byte)dto.EffectiveMonth,
-                WeightPercent = dto.WeightPercent,
-                CreatedAt = now,
-                CreatedBy = user
-            });
+                version.UpdatedAt = now;
+                version.UpdatedBy = user;
+            }
+            version.TargetValue = dto.TargetValue;
+            version.ScoringMethod = PowerAcScoringMethods.Pending;
+            version.ScoringParameter = null;
+            version.ScoringApproved = false;
+            version.ApprovedBy = null;
+            version.ApprovedAt = null;
+            version.ApprovalNote = null;
+
+            var weight = await _db.PowerAcComponentWeights.FirstOrDefaultAsync(w =>
+                w.ComponentId == component.Id
+                && w.EffectiveYear == dto.EffectiveYear
+                && w.EffectiveMonth == dto.EffectiveMonth);
+            if (weight is null)
+            {
+                _db.PowerAcComponentWeights.Add(new PowerAcComponentWeight
+                {
+                    ComponentId = component.Id,
+                    EffectiveYear = (short)dto.EffectiveYear,
+                    EffectiveMonth = (byte)dto.EffectiveMonth,
+                    WeightPercent = dto.WeightPercent,
+                    CreatedAt = now,
+                    CreatedBy = user
+                });
+            }
+            else
+            {
+                weight.WeightPercent = dto.WeightPercent;
+            }
             await _db.SaveChangesAsync();
 
             PowerAcAudit.Add(_db, PowerAcAuditEntities.ComponentVersion, version.Id,
