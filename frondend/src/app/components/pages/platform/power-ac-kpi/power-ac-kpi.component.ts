@@ -393,6 +393,17 @@ export class PowerAcKpiComponent implements OnInit {
     return c?.message ?? '';
   }
 
+  overviewCategory(row: OverviewRow): string {
+    switch (row.key) {
+      case 'PM': return 'Preventive Maintenance';
+      case 'SAFETY': return 'Critical Safety';
+      case 'CORRECTIVE': return 'Corrective Action';
+      case 'AVAILABILITY': return 'Power System Availability';
+      case 'COMPOSITE': return 'Power & A/C';
+      default: return 'Summary';
+    }
+  }
+
   statusClass(status: string | null | undefined): string {
     switch (status) {
       case 'Complete': case 'Verified': return 'status-complete';

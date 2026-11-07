@@ -156,18 +156,26 @@
         </header>
 
         <div class="table-wrapper">
-          <table class="data-table overview-table">
+          <table class="data-table overview-table ipnw-style-table">
             <thead>
               <tr>
-                <th>KPI</th>
-                <th>Target</th>
-                <th>Weight</th>
-                <th *ngFor="let g of results.groups">{{ groupHeaderById(g.engineerGroupId) }}</th>
+                <th rowspan="2" class="align-middle">No</th>
+                <th rowspan="2" class="align-middle">KPI</th>
+                <th rowspan="2" class="align-middle">Category</th>
+                <th rowspan="2" class="align-middle">Target</th>
+                <th rowspan="2" class="align-middle">Weightage</th>
+                <th *ngFor="let g of results.groups" rowspan="2" class="align-middle">
+                  {{ groupHeaderById(g.engineerGroupId) }}<br>
+                  <small>(Achievement %)</small>
+                </th>
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let row of overviewRows" [class.emphasis-row]="row.emphasis">
+              <ng-container *ngFor="let row of overviewRows; let i = index">
+                <tr [class.emphasis-row]="row.emphasis" [class.summary-row]="i >= components.length">
+                <td>{{ i < components.length ? i + 1 : '' }}</td>
                 <td class="kpi-name">{{ row.label }}</td>
+                <td>{{ overviewCategory(row) }}</td>
                 <td>{{ row.target }}</td>
                 <td>{{ row.weight }}</td>
                 <td *ngFor="let g of results.groups" class="achievement-cell" [title]="overviewTitle(row, g)">
@@ -182,9 +190,10 @@
                     <i class="bi bi-x" *ngIf="!overviewApproved(row, g)"></i>
                   </div>
                 </td>
-              </tr>
+                </tr>
+              </ng-container>
               <tr *ngIf="!results.groups.length">
-                <td colspan="3">No engineer groups are configured.</td>
+                <td colspan="5">No engineer groups are configured.</td>
               </tr>
             </tbody>
           </table>
