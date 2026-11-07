@@ -92,70 +92,20 @@
         <div class="kpi-form" *ngIf="componentForm as c" [class.edit-mode]="!c.isNew">
           <div class="form-row">
             <div class="form-group">
-              <label for="comp-code">Code</label>
-              <input id="comp-code" type="text" maxlength="30" [(ngModel)]="c.code" placeholder="Code" [disabled]="!c.isNew">
-            </div>
-            <div class="form-group">
               <label for="comp-name">KPI</label>
               <input id="comp-name" type="text" maxlength="150" [(ngModel)]="c.name" placeholder="KPI name">
             </div>
-            <div class="form-group wide-group">
+            <div class="form-group">
               <label for="comp-source">Category</label>
-              <select id="comp-source" [(ngModel)]="c.dataSource" [disabled]="!c.isNew">
-                <option value="ComponentResult">Component Result</option>
-                <option value="PowerAndAC">Preventive Maintenance</option>
-              </select>
+              <input id="comp-source" type="text" maxlength="30" [(ngModel)]="c.dataSource" placeholder="Category">
             </div>
-          </div>
-          <div class="form-row">
             <div class="form-group">
-              <label for="comp-target">Target ({{ c.targetUnit }})</label>
+              <label for="comp-target">Target</label>
               <input id="comp-target" type="number" min="0" [(ngModel)]="c.targetValue" placeholder="Target">
-            </div>
-            <div class="form-group">
-              <label for="comp-unit">Target Unit</label>
-              <input id="comp-unit" type="text" maxlength="20" [(ngModel)]="c.targetUnit" placeholder="%">
             </div>
             <div class="form-group">
               <label for="comp-weight">Weightage (%)</label>
               <input id="comp-weight" type="number" min="0" max="100" step="0.0001" [(ngModel)]="c.weightPercent" placeholder="Weightage (%)">
-            </div>
-            <div class="form-group">
-              <label for="comp-method">Scoring Method</label>
-              <select id="comp-method" [(ngModel)]="c.scoringMethod">
-                <option *ngFor="let m of c.allowedScoringMethods" [value]="m">{{ m }}</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="comp-parameter">Deduction per Incident (%)</label>
-              <input id="comp-parameter" type="number" min="0" max="100" [(ngModel)]="c.scoringParameter"
-                [disabled]="c.scoringMethod !== 'DeductionPerIncident'" placeholder="Only for DeductionPerIncident">
-            </div>
-            <div class="form-group">
-              <label for="comp-order">Sort Order</label>
-              <input id="comp-order" type="number" min="0" [(ngModel)]="c.sortOrder">
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group check-group">
-              <label class="check-label"><input type="checkbox" [(ngModel)]="c.scoringApproved" [disabled]="c.scoringMethod === 'Pending'"> Scoring method approved</label>
-            </div>
-            <div class="form-group check-group">
-              <label class="check-label"><input type="checkbox" [(ngModel)]="c.isActive"> Active</label>
-            </div>
-          </div>
-          <div class="form-row" *ngIf="!c.isNew">
-            <div class="form-group">
-              <label for="comp-year">Effective Year</label>
-              <select id="comp-year" [(ngModel)]="c.effectiveYear"><option *ngFor="let y of years" [ngValue]="y">{{ y }}</option></select>
-            </div>
-            <div class="form-group">
-              <label for="comp-month">Effective Month</label>
-              <select id="comp-month" [(ngModel)]="c.effectiveMonth"><option *ngFor="let m of months" [ngValue]="m.value">{{ m.label }}</option></select>
-            </div>
-            <div class="form-group wide-group">
-              <label for="comp-note">Approval Note (decision reference)</label>
-              <input id="comp-note" type="text" maxlength="500" [(ngModel)]="c.approvalNote" placeholder="e.g. meeting minute or email reference">
             </div>
           </div>
           <span *ngIf="c.error" class="error">{{ c.error }}</span>
@@ -179,7 +129,7 @@
             </tr>
             <tr *ngFor="let c of components">
               <td>{{ c.name }} <small class="d-block text-muted">{{ c.code }}</small></td>
-              <td>{{ c.dataSource === 'PowerAndAC' ? 'Preventive Maintenance' : 'Component Result' }}</td>
+              <td>{{ c.dataSource }}</td>
               <td>{{ c.targetValue }} {{ c.targetUnit }}</td>
               <td>{{ c.currentWeightPercent ?? '—' }}</td>
               <td class="actions-col">

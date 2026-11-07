@@ -228,11 +228,15 @@ export class PowerAcConfigComponent implements OnInit {
 
   saveComponent(c: ComponentEdit): void {
     c.error = '';
-    if (c.isNew && (!c.code.trim() || !c.name.trim())) {
-      c.error = 'Enter a component code and KPI name.';
+    if (!c.name.trim() || !c.dataSource.trim()) {
+      c.error = 'Enter a KPI name and category.';
       return;
     }
-    if (c.isNew && (Number(c.weightPercent) < 0 || Number(c.weightPercent) > 100)) {
+    if (Number(c.targetValue) < 0) {
+      c.error = 'Target cannot be negative.';
+      return;
+    }
+    if (Number(c.weightPercent) < 0 || Number(c.weightPercent) > 100) {
       c.error = 'Weightage must be between 0 and 100%.';
       return;
     }
@@ -248,7 +252,7 @@ export class PowerAcConfigComponent implements OnInit {
     c.saving = true;
     const request$ = c.isNew
       ? this.api.createComponent({
-          code: c.code.trim(),
+          code: c.code.trim() || this.generateComponentCode(c.name),
           name: c.name.trim(),
           targetValue: Number(c.targetValue),
           targetUnit: c.targetUnit.trim(),
@@ -283,6 +287,16 @@ export class PowerAcConfigComponent implements OnInit {
       },
       error: err => { c.saving = false; c.error = this.describe(err, 'save the component'); this.cdr.detectChanges(); }
     });
+  }
+
+  private generateComponentCode(name: string): string {
+    const code = name
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 30);
+    return code || `KPI_${this.components.length + 1}`;
   }
 
   deleteComponent(c: ComponentEdit): void {
