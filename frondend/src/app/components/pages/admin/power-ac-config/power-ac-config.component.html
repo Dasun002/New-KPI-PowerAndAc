@@ -5,18 +5,11 @@
   </div>
 
   <div class="dashboard-container">
-    <nav class="section-switcher" role="tablist">
-      <button type="button" role="tab" [class.active]="tab === 'weights'" (click)="setTab('weights')"><i class="bi bi-sliders"></i>Weights</button>
-      <button type="button" role="tab" [class.active]="tab === 'components'" (click)="setTab('components')"><i class="bi bi-ui-checks"></i>Components &amp; Scoring</button>
-      <button type="button" role="tab" [class.active]="tab === 'settings'" (click)="setTab('settings')"><i class="bi bi-calculator"></i>Points &amp; Verification</button>
-      <button type="button" role="tab" [class.active]="tab === 'groups'" (click)="setTab('groups')"><i class="bi bi-diagram-3"></i>Engineer Groups</button>
-      <button type="button" role="tab" [class.active]="tab === 'assignments'" (click)="setTab('assignments')"><i class="bi bi-person-check"></i>Data-entry Access</button>
-    </nav>
-
     <div *ngIf="error" class="error-message" role="alert">{{ error }}</div>
     <div *ngIf="message && !error" class="success-message" role="status">{{ message }}</div>
 
-    <!-- ===================== WEIGHTS ===================== -->
+    <!-- ===================== WEIGHTS =====================
+    This configuration is retained in the backend but is not exposed on this screen.
     <ng-container *ngIf="tab === 'weights'">
       <div class="form-container">
         <div class="form-header">
@@ -78,6 +71,7 @@
         </table>
       </div>
     </ng-container>
+    -->
 
     <!-- ===================== COMPONENTS ===================== -->
     <ng-container *ngIf="tab === 'components'">
@@ -200,43 +194,9 @@
       </div>
     </ng-container>
 
-    <ng-container *ngIf="tab === 'components'">
-      <div class="table-responsive">
-        <table class="kpi-table" id="version-history">
-          <thead>
-            <tr>
-              <th>Component</th>
-              <th>Effective From</th>
-              <th>Target</th>
-              <th>Scoring Method</th>
-              <th>Approved</th>
-              <th>Approved By / At</th>
-              <th>Approval Note</th>
-              <th>Created / Updated By</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngIf="!versions.length">
-              <td colspan="8" class="no-data">No scoring versions yet</td>
-            </tr>
-            <tr *ngFor="let v of versions">
-              <td>{{ v.componentCode }}</td>
-              <td>{{ months[v.effectiveMonth - 1].label }} {{ v.effectiveYear }}</td>
-              <td>{{ v.targetValue }}</td>
-              <td>{{ v.scoringMethod }}<span *ngIf="v.scoringParameter !== null"> ({{ v.scoringParameter }})</span></td>
-              <td><span class="yes-no" [class.yes]="v.scoringApproved">{{ v.scoringApproved ? 'Yes' : 'No' }}</span></td>
-              <td>{{ v.approvedBy || '—' }}<small class="d-block text-muted">{{ v.approvedAt | date:'medium' }}</small></td>
-              <td class="note-col">{{ v.approvalNote || '—' }}</td>
-              <td>{{ v.updatedBy || v.createdBy }}<small class="d-block text-muted">{{ (v.updatedAt || v.createdAt) | date:'medium' }}</small></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="form-note"><i class="bi bi-info-circle me-1"></i>Each period is scored with the version effective for its last month. Months that already have saved results cannot be changed; use a later effective month. Only Admins can approve, and only after the business confirms the rule.</p>
-    </ng-container>
-
-    <!-- ===================== SETTINGS ===================== -->
-    <ng-container *ngIf="tab === 'settings'">
+    <!-- ===================== SETTINGS =====================
+    Hidden from the Power & A/C configuration screen.
+    <ng-container *ngIf="false && tab === 'settings'">
       <div class="form-container">
         <div class="form-header">
           <div>
@@ -305,9 +265,10 @@
       </div>
       <p class="form-note"><i class="bi bi-info-circle me-1"></i>Points Applicable comes from the KPI definition on the KPI Management screen.</p>
     </ng-container>
+    -->
 
     <!-- ===================== GROUPS ===================== -->
-    <ng-container *ngIf="tab === 'groups'">
+    <ng-container *ngIf="false && tab === 'groups'">
       <div class="form-container" *ngIf="groupForm as g">
         <div class="form-header">
           <div>
@@ -389,7 +350,7 @@
     </ng-container>
 
     <!-- ===================== ASSIGNMENTS ===================== -->
-    <ng-container *ngIf="tab === 'assignments'">
+    <ng-container *ngIf="false && tab === 'assignments'">
       <div class="form-container">
         <div class="form-header">
           <div>

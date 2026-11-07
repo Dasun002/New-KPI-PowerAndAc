@@ -53,7 +53,7 @@ export class PowerAcConfigComponent implements OnInit {
   readonly years = Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - 3 + i);
   readonly pointsMethods = ['TargetScaled', 'Linear'];
 
-  tab: PowerAcConfigTab = 'weights';
+  tab: PowerAcConfigTab = 'components';
   loading = false;
   message = '';
   error = '';
@@ -96,7 +96,7 @@ export class PowerAcConfigComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.loadWeights();
+    this.loadComponents();
   }
 
   setTab(tab: PowerAcConfigTab): void {
