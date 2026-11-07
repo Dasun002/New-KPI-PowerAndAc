@@ -163,7 +163,9 @@ export class PowerAcConfigComponent implements OnInit {
     this.begin();
     this.api.getComponents().subscribe({
       next: list => {
-        this.components = list.map(c => ({ ...c, saving: false, error: '' }));
+        this.components = list
+          .filter(c => c.isActive)
+          .map(c => ({ ...c, saving: false, error: '' }));
         this.loadVersions();
         this.done();
       },
