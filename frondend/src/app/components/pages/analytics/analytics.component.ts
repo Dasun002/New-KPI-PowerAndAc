@@ -499,7 +499,7 @@ return {
               : components.filter(component => component.isActive).map(component => ({
                   ...row,
                   id: -component.id,
-                  category: component.name,
+                  category: 'Power & AC',
                   keyPerformanceIndicators: component.name,
                   descriptionOfKPI: `${component.targetValue} ${component.targetUnit}`,
                   weightage: component.currentWeightPercent ?? 0,
