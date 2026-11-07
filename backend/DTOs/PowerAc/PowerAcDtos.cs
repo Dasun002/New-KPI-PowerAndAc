@@ -96,6 +96,36 @@ namespace backend.DTOs.PowerAc
         public int SortOrder { get; set; }
     }
 
+    public class CreatePowerAcComponentDto
+    {
+        [Required, StringLength(30)]
+        public string Code { get; set; } = string.Empty;
+
+        [Required, StringLength(150)]
+        public string Name { get; set; } = string.Empty;
+
+        [Range(0, 100000)]
+        public decimal TargetValue { get; set; }
+
+        [Required, StringLength(20)]
+        public string TargetUnit { get; set; } = "%";
+
+        [Required, StringLength(30)]
+        public string DataSource { get; set; } = "ComponentResult";
+
+        [Range(0, 100)]
+        public decimal WeightPercent { get; set; }
+
+        [Range(2000, 9999)]
+        public int EffectiveYear { get; set; }
+
+        [Range(1, 12)]
+        public int EffectiveMonth { get; set; }
+
+        [Range(0, 1000)]
+        public int SortOrder { get; set; }
+    }
+
     public class PowerAcWeightItemDto
     {
         [Range(1, int.MaxValue)]

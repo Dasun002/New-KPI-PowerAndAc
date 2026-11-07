@@ -81,36 +81,50 @@
 
     <!-- ===================== COMPONENTS ===================== -->
     <ng-container *ngIf="tab === 'components'">
-      <div class="form-container" *ngIf="componentForm as c">
+      <div class="form-container">
         <div class="form-header">
           <div>
-            <h2>Update Component – {{ c.name }}</h2>
-            <p class="form-sub">A component is scored only after its method is approved. Changing a method or target clears the approval unless you approve it again.</p>
+            <h2>{{ componentForm ? (componentForm.isNew ? 'Add KPI' : 'Update KPI') : 'Add KPI' }}</h2>
+            <p class="form-sub">Manage Power &amp; A/C KPI records</p>
           </div>
           <div class="form-actions">
-            <button type="button" class="btn-submit" (click)="saveComponent(c)" [disabled]="c.saving">Update</button>
-            <button type="button" class="btn-cancel" (click)="cancelComponentEdit()" [disabled]="c.saving">Cancel</button>
+            <button *ngIf="componentForm" type="button" class="btn-submit" (click)="saveComponent(componentForm)" [disabled]="componentForm.saving">
+              {{ componentForm.isNew ? 'Add KPI' : 'Update KPI' }}
+            </button>
+            <button *ngIf="componentForm" type="button" class="btn-cancel" (click)="cancelComponentEdit()" [disabled]="componentForm.saving">Cancel</button>
+            <button *ngIf="!componentForm" type="button" class="btn-submit" (click)="addComponent()" [disabled]="loading">Add KPI</button>
           </div>
         </div>
-        <div class="kpi-form">
+        <div class="kpi-form" *ngIf="componentForm as c" [class.edit-mode]="!c.isNew">
           <div class="form-row">
             <div class="form-group">
-              <label for="comp-year">Effective Year</label>
-              <select id="comp-year" [(ngModel)]="c.effectiveYear"><option *ngFor="let y of years" [ngValue]="y">{{ y }}</option></select>
+              <label for="comp-code">Code</label>
+              <input id="comp-code" type="text" maxlength="30" [(ngModel)]="c.code" placeholder="Code" [disabled]="!c.isNew">
             </div>
             <div class="form-group">
-              <label for="comp-month">Effective Month</label>
-              <select id="comp-month" [(ngModel)]="c.effectiveMonth"><option *ngFor="let m of months" [ngValue]="m.value">{{ m.label }}</option></select>
+              <label for="comp-name">KPI</label>
+              <input id="comp-name" type="text" maxlength="150" [(ngModel)]="c.name" placeholder="KPI name">
             </div>
             <div class="form-group wide-group">
-              <label for="comp-note">Approval Note (decision reference)</label>
-              <input id="comp-note" type="text" maxlength="500" [(ngModel)]="c.approvalNote" placeholder="e.g. meeting minute or email reference">
+              <label for="comp-source">Category</label>
+              <select id="comp-source" [(ngModel)]="c.dataSource" [disabled]="!c.isNew">
+                <option value="ComponentResult">Component Result</option>
+                <option value="PowerAndAC">Preventive Maintenance</option>
+              </select>
             </div>
           </div>
           <div class="form-row">
             <div class="form-group">
               <label for="comp-target">Target ({{ c.targetUnit }})</label>
               <input id="comp-target" type="number" min="0" [(ngModel)]="c.targetValue" placeholder="Target">
+            </div>
+            <div class="form-group">
+              <label for="comp-unit">Target Unit</label>
+              <input id="comp-unit" type="text" maxlength="20" [(ngModel)]="c.targetUnit" placeholder="%">
+            </div>
+            <div class="form-group">
+              <label for="comp-weight">Weightage (%)</label>
+              <input id="comp-weight" type="number" min="0" max="100" step="0.0001" [(ngModel)]="c.weightPercent" placeholder="Weightage (%)">
             </div>
             <div class="form-group">
               <label for="comp-method">Scoring Method</label>
@@ -136,6 +150,20 @@
               <label class="check-label"><input type="checkbox" [(ngModel)]="c.isActive"> Active</label>
             </div>
           </div>
+          <div class="form-row" *ngIf="!c.isNew">
+            <div class="form-group">
+              <label for="comp-year">Effective Year</label>
+              <select id="comp-year" [(ngModel)]="c.effectiveYear"><option *ngFor="let y of years" [ngValue]="y">{{ y }}</option></select>
+            </div>
+            <div class="form-group">
+              <label for="comp-month">Effective Month</label>
+              <select id="comp-month" [(ngModel)]="c.effectiveMonth"><option *ngFor="let m of months" [ngValue]="m.value">{{ m.label }}</option></select>
+            </div>
+            <div class="form-group wide-group">
+              <label for="comp-note">Approval Note (decision reference)</label>
+              <input id="comp-note" type="text" maxlength="500" [(ngModel)]="c.approvalNote" placeholder="e.g. meeting minute or email reference">
+            </div>
+          </div>
           <span *ngIf="c.error" class="error">{{ c.error }}</span>
         </div>
       </div>
@@ -144,31 +172,26 @@
         <table class="kpi-table">
           <thead>
             <tr>
-              <th>Component</th>
-              <th>Data Source</th>
+              <th>KPI</th>
+              <th>Category</th>
               <th>Target</th>
-              <th>Scoring Method</th>
-              <th>Approved</th>
-              <th>Active</th>
-              <th>Approved By</th>
+              <th>Weightage (%)</th>
               <th class="actions-col">Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr *ngIf="!components.length">
-              <td colspan="8" class="no-data">No components configured</td>
+              <td colspan="5" class="no-data">No Power &amp; A/C KPI data available</td>
             </tr>
             <tr *ngFor="let c of components">
-              <td>{{ c.name }}<small class="d-block text-muted" *ngIf="c.hasEffectiveVersion">Version from {{ months[(c.versionEffectiveMonth ?? 1) - 1].label }} {{ c.versionEffectiveYear }}</small><small class="d-block text-danger" *ngIf="c.hasEffectiveVersion === false">No version effective this month</small></td>
-              <td>{{ c.dataSource }}</td>
+              <td>{{ c.name }} <small class="d-block text-muted">{{ c.code }}</small></td>
+              <td>{{ c.dataSource === 'PowerAndAC' ? 'Preventive Maintenance' : 'Component Result' }}</td>
               <td>{{ c.targetValue }} {{ c.targetUnit }}</td>
-              <td>{{ c.scoringMethod }}<span *ngIf="c.scoringParameter !== null"> ({{ c.scoringParameter }})</span></td>
-              <td><span class="yes-no" [class.yes]="c.scoringApproved">{{ c.scoringApproved ? 'Yes' : 'No' }}</span></td>
-              <td><span class="yes-no" [class.yes]="c.isActive">{{ c.isActive ? 'Yes' : 'No' }}</span></td>
-              <td>{{ c.approvedBy || '—' }}</td>
+              <td>{{ c.currentWeightPercent ?? '—' }}</td>
               <td class="actions-col">
                 <div class="action-buttons">
                   <button type="button" class="btn-edit" (click)="editComponent(c)">Edit</button>
+                  <button type="button" class="btn-delete" (click)="deleteComponent(c)" [disabled]="!c.isActive || loading">Delete</button>
                 </div>
               </td>
             </tr>

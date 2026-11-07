@@ -326,6 +326,17 @@ export class PowerAcKpiService {
     return this.http.put<PowerAcComponent>(`${this.base}/config/components/${id}`, body);
   }
 
+  createComponent(body: {
+    code: string; name: string; targetValue: number; targetUnit: string; dataSource: string;
+    weightPercent: number; effectiveYear: number; effectiveMonth: number; sortOrder: number;
+  }): Observable<PowerAcComponent> {
+    return this.http.post<PowerAcComponent>(`${this.base}/config/components`, body);
+  }
+
+  deleteComponent(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/config/components/${id}`);
+  }
+
   getComponentVersions(id: number): Observable<PowerAcComponentVersion[]> {
     return this.http.get<PowerAcComponentVersion[]>(`${this.base}/config/components/${id}/versions`);
   }

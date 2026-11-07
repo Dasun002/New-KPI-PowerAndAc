@@ -44,6 +44,71 @@ namespace backend.Controllers
             return Ok(components.Select(c => ToDto(c, EffectiveWeight(weights, c.Id, key)?.WeightPercent, EffectiveVersion(versions, c.Id, key))).ToList());
         }
 
+        [HttpPost("components")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<ActionResult<PowerAcComponentDto>> CreateComponent([FromBody] CreatePowerAcComponentDto dto)
+        {
+            var code = dto.Code.Trim().ToUpperInvariant();
+            var name = dto.Name.Trim();
+            var dataSource = dto.DataSource.Trim();
+            if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
+                return BadRequest(new { message = "Code and KPI name are required." });
+            if (dataSource is not (PowerAcDataSources.PowerAndAC or PowerAcDataSources.ComponentResult))
+                return BadRequest(new { message = "Data source must be PowerAndAC or ComponentResult." });
+            if (await _db.PowerAcComponents.AnyAsync(c => c.Code == code))
+                return Conflict(new { message = $"A component with code '{code}' already exists." });
+
+            var now = DateTime.UtcNow;
+            var user = PowerAcAccessService.CurrentUserName(User);
+            var component = new PowerAcComponent
+            {
+                Code = code,
+                Name = name,
+                TargetValue = dto.TargetValue,
+                TargetUnit = dto.TargetUnit.Trim(),
+                DataSource = dataSource,
+                ScoringMethod = PowerAcScoringMethods.Pending,
+                ScoringApproved = false,
+                SortOrder = dto.SortOrder,
+                IsActive = true,
+                CreatedAt = now,
+                CreatedBy = user
+            };
+            _db.PowerAcComponents.Add(component);
+            await _db.SaveChangesAsync();
+
+            var version = new PowerAcComponentVersion
+            {
+                ComponentId = component.Id,
+                EffectiveYear = (short)dto.EffectiveYear,
+                EffectiveMonth = (byte)dto.EffectiveMonth,
+                TargetValue = dto.TargetValue,
+                ScoringMethod = PowerAcScoringMethods.Pending,
+                ScoringApproved = false,
+                CreatedAt = now,
+                CreatedBy = user
+            };
+            _db.PowerAcComponentVersions.Add(version);
+            _db.PowerAcComponentWeights.Add(new PowerAcComponentWeight
+            {
+                ComponentId = component.Id,
+                EffectiveYear = (short)dto.EffectiveYear,
+                EffectiveMonth = (byte)dto.EffectiveMonth,
+                WeightPercent = dto.WeightPercent,
+                CreatedAt = now,
+                CreatedBy = user
+            });
+            await _db.SaveChangesAsync();
+
+            PowerAcAudit.Add(_db, PowerAcAuditEntities.ComponentVersion, version.Id,
+                PowerAcAuditActions.Created, null, "Unapproved", user,
+                new { component = component.Code, component.Name, dto.EffectiveYear, dto.EffectiveMonth, dto.WeightPercent });
+            await _db.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetComponents), new { year = dto.EffectiveYear, month = dto.EffectiveMonth },
+                ToDto(component, dto.WeightPercent, version));
+        }
+
         // Every scoring version of a component, newest first, with who created and approved it.
         [HttpGet("components/{id:int}/versions")]
         public async Task<ActionResult<List<PowerAcComponentVersionDto>>> GetComponentVersions(int id)
@@ -152,6 +217,24 @@ namespace backend.Controllers
             var weights = await _db.PowerAcComponentWeights.AsNoTracking().ToListAsync();
             var key = PowerAcPeriod.Key(dto.EffectiveYear, dto.EffectiveMonth);
             return Ok(ToDto(component, EffectiveWeight(weights, component.Id, key)?.WeightPercent, version));
+        }
+
+        [HttpDelete("components/{id:int}")]
+        [Authorize(Policy = "AdminOnly")]
+        public async Task<IActionResult> DeleteComponent(int id)
+        {
+            var component = await _db.PowerAcComponents.FirstOrDefaultAsync(c => c.Id == id);
+            if (component is null) return NotFound(new { message = "Component not found." });
+            if (!component.IsActive) return NoContent();
+            // Historical snapshots retain foreign keys to components, so deletion is always a deactivation.
+            component.IsActive = false;
+            component.UpdatedAt = DateTime.UtcNow;
+            component.UpdatedBy = PowerAcAccessService.CurrentUserName(User);
+            PowerAcAudit.Add(_db, PowerAcAuditEntities.ComponentVersion, component.Id,
+                PowerAcAuditActions.Deleted, "Active", "Inactive", component.UpdatedBy,
+                new { component = component.Code });
+            await _db.SaveChangesAsync();
+            return NoContent();
         }
 
         // Keeps the component row's summary columns equal to the version effective this month (display only;

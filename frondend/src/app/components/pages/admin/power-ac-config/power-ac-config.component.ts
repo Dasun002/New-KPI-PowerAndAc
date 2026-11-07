@@ -28,6 +28,8 @@ interface WeightInput { componentId: number; code: string; name: string; weightP
 interface ComponentEdit extends PowerAcComponent {
   saving: boolean;
   error: string;
+  isNew?: boolean;
+  weightPercent?: number | null;
   // Scoring version being created/updated by the form.
   effectiveYear?: number;
   effectiveMonth?: number;
@@ -191,12 +193,49 @@ export class PowerAcConfigComponent implements OnInit {
     this.message = '';
   }
 
+  addComponent(): void {
+    const now = new Date();
+    this.componentForm = {
+      id: 0,
+      code: '',
+      name: '',
+      targetValue: 0,
+      targetUnit: '%',
+      dataSource: 'ComponentResult',
+      scoringMethod: 'Pending',
+      scoringParameter: null,
+      scoringApproved: false,
+      sortOrder: this.components.length,
+      isActive: true,
+      currentWeightPercent: null,
+      allowedScoringMethods: ['Pending', 'RatioCapped', 'RatioStrict', 'TargetScaled', 'DirectPercent'],
+      hasEffectiveVersion: false,
+      saving: false,
+      error: '',
+      isNew: true,
+      weightPercent: 0,
+      effectiveYear: now.getFullYear(),
+      effectiveMonth: now.getMonth() + 1,
+      approvalNote: ''
+    };
+    this.message = '';
+    this.error = '';
+  }
+
   cancelComponentEdit(): void {
     this.componentForm = null;
   }
 
   saveComponent(c: ComponentEdit): void {
     c.error = '';
+    if (c.isNew && (!c.code.trim() || !c.name.trim())) {
+      c.error = 'Enter a component code and KPI name.';
+      return;
+    }
+    if (c.isNew && (Number(c.weightPercent) < 0 || Number(c.weightPercent) > 100)) {
+      c.error = 'Weightage must be between 0 and 100%.';
+      return;
+    }
     if (c.scoringMethod === 'Pending' && c.scoringApproved) {
       c.error = 'A Pending scoring method cannot be approved.';
       return;
@@ -205,29 +244,58 @@ export class PowerAcConfigComponent implements OnInit {
       c.error = 'Enter the deduction percentage per incident.';
       return;
     }
-    c.saving = true;
     const now = new Date();
-    this.api.updateComponent(c.id, {
-      effectiveYear: Number(c.effectiveYear ?? now.getFullYear()),
-      effectiveMonth: Number(c.effectiveMonth ?? now.getMonth() + 1),
-      approvalNote: c.approvalNote?.trim() || null,
-      targetValue: Number(c.targetValue),
-      scoringMethod: c.scoringMethod,
-      scoringParameter: c.scoringParameter === null || (c.scoringParameter as unknown) === '' ? null : Number(c.scoringParameter),
-      scoringApproved: c.scoringApproved,
-      isActive: c.isActive,
-      sortOrder: Number(c.sortOrder)
-    }).subscribe({
+    c.saving = true;
+    const request$ = c.isNew
+      ? this.api.createComponent({
+          code: c.code.trim(),
+          name: c.name.trim(),
+          targetValue: Number(c.targetValue),
+          targetUnit: c.targetUnit.trim(),
+          dataSource: c.dataSource,
+          weightPercent: Number(c.weightPercent),
+          effectiveYear: Number(c.effectiveYear ?? now.getFullYear()),
+          effectiveMonth: Number(c.effectiveMonth ?? now.getMonth() + 1),
+          sortOrder: Number(c.sortOrder)
+        })
+      : this.api.updateComponent(c.id, {
+          effectiveYear: Number(c.effectiveYear ?? now.getFullYear()),
+          effectiveMonth: Number(c.effectiveMonth ?? now.getMonth() + 1),
+          approvalNote: c.approvalNote?.trim() || null,
+          targetValue: Number(c.targetValue),
+          scoringMethod: c.scoringMethod,
+          scoringParameter: c.scoringParameter === null || (c.scoringParameter as unknown) === '' ? null : Number(c.scoringParameter),
+          scoringApproved: c.scoringApproved,
+          isActive: c.isActive,
+          sortOrder: Number(c.sortOrder)
+        });
+    request$.subscribe({
       next: updated => {
         Object.assign(c, updated, { saving: false, error: '' });
         const row = this.components.find(x => x.id === c.id);
         if (row && row !== c) Object.assign(row, updated, { saving: false, error: '' });
         if (this.componentForm === c) this.componentForm = null;
         this.loadVersions();
-        this.message = `${c.name} saved.`;
+        this.message = `${c.name} ${c.isNew ? 'added' : 'saved'}.`;
+        if (c.isNew) this.componentForm = null;
+        this.loadComponents();
         this.cdr.detectChanges();
       },
       error: err => { c.saving = false; c.error = this.describe(err, 'save the component'); this.cdr.detectChanges(); }
+    });
+  }
+
+  deleteComponent(c: ComponentEdit): void {
+    if (!confirm(`Are you sure you want to delete ${c.name}? It will be deactivated and retained for history.`)) return;
+    this.loading = true;
+    this.error = '';
+    this.api.deleteComponent(c.id).subscribe({
+      next: () => {
+        if (this.componentForm?.id === c.id) this.componentForm = null;
+        this.message = `${c.name} deleted.`;
+        this.loadComponents();
+      },
+      error: err => this.fail(err, 'delete the component')
     });
   }
 
