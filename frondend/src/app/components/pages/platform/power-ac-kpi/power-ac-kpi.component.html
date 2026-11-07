@@ -1,54 +1,71 @@
-<div class="kpi-page">
-  <div class="kpi-overlay"></div>
-
-  <section class="hero-panel">
-    <div class="hero-content">
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-info">
       <h1>Power &amp; A/C KPI</h1>
-      <p class="hero-subtitle">Preventive Maintenance, Critical Safety, Corrective Action and Power System Availability across network areas.</p>
+      <p class="page-subtitle">Preventive Maintenance, Critical Safety, Corrective Action and Power System Availability across network areas.</p>
+      <div class="mt-3">
+        <small class="text-muted">
+          <i class="bi bi-info-circle me-1"></i>
+          {{ components.length }} KPIs loaded ·
+          <span [class.text-success]="canCalculate" [class.text-warning]="!canCalculate">
+            <i class="bi" [ngClass]="canCalculate ? 'bi-check-circle' : 'bi-exclamation-circle'"></i>
+            {{ canCalculate ? 'Edit mode enabled' : 'View only mode' }}
+          </span>
+        </small>
+      </div>
     </div>
-    <div class="hero-actions">
+
+    <form *ngIf="!loading && !error" (submit)="$event.preventDefault()" class="filters-form pac-filters">
+      <div class="pac-filter-column">
+        <label for="pac-month" class="form-label">Month:</label>
+        <select id="pac-month" class="form-select" [(ngModel)]="month" (change)="onPeriodChange()" name="month">
+          <option *ngFor="let m of months" [ngValue]="m.value">{{ m.label }}</option>
+        </select>
+      </div>
+      <div class="pac-filter-column">
+        <label for="pac-year" class="form-label">Year:</label>
+        <select id="pac-year" class="form-select" [(ngModel)]="year" (change)="onPeriodChange()" name="year">
+          <option *ngFor="let y of years" [ngValue]="y">{{ y }}</option>
+        </select>
+      </div>
+      <div class="pac-filter-column">
+        <label for="pac-period-type" class="form-label">Period:</label>
+        <select id="pac-period-type" class="form-select" [(ngModel)]="periodType" (change)="onPeriodChange()" name="periodType">
+          <option value="Month">Month</option>
+          <option value="Quarter">Quarter</option>
+        </select>
+      </div>
+      <div class="pac-filter-column" *ngIf="periodType === 'Quarter'">
+        <label for="pac-quarter" class="form-label">Quarter:</label>
+        <select id="pac-quarter" class="form-select" [(ngModel)]="quarter" (change)="onPeriodChange()" name="quarter">
+          <option *ngFor="let q of quarters" [ngValue]="q.value">{{ q.label }}</option>
+        </select>
+      </div>
+    </form>
+
+    <div class="header-actions">
       <button type="button" class="export-btn" id="pac-calculate" *ngIf="canCalculate && tab === 'results'"
         (click)="calculateAndSave()" [disabled]="loading">
         Calculate &amp; Save
       </button>
     </div>
-  </section>
+  </div>
 
-  <nav class="section-switcher" role="tablist">
+  <nav class="section-switcher pac-tabs" role="tablist">
     <button type="button" role="tab" [class.active]="tab === 'results'" [attr.aria-selected]="tab === 'results'" (click)="setTab('results')"><i class="bi bi-clipboard-data-fill"></i>Results</button>
     <button type="button" role="tab" [class.active]="tab === 'allocations'" [attr.aria-selected]="tab === 'allocations'" (click)="setTab('allocations')"><i class="bi bi-diagram-3-fill"></i>Area Allocation</button>
     <button *ngIf="canEnterData" type="button" role="tab" [class.active]="tab === 'data'" [attr.aria-selected]="tab === 'data'" (click)="setTab('data')"><i class="bi bi-pencil-square"></i>Component Data</button>
     <button *ngIf="canVerify" type="button" role="tab" [class.active]="tab === 'review'" [attr.aria-selected]="tab === 'review'" (click)="setTab('review')"><i class="bi bi-patch-check-fill"></i>Review</button>
   </nav>
 
-  <!-- Filters shown inside each card's title stripe, as on the Tower / Routine Maintenance pages. -->
+  <div class="selected-filters mb-4">
+    <div class="filter-chip"><span class="filter-label">Period:</span><span class="filter-value">{{ periodLabel }}</span></div>
+    <div class="filter-chip"><span class="filter-label">View:</span><span class="filter-value">{{ tab | titlecase }}</span></div>
+  </div>
+
+  <!-- Filters for secondary data-entry views. -->
   <ng-template #periodFilters>
-    <div class="header-filters">
-      <div class="filter-group" *ngIf="tab === 'results'">
-        <label for="pac-period-type">Period:</label>
-        <select id="pac-period-type" class="filter-select" [(ngModel)]="periodType" (ngModelChange)="onPeriodChange()">
-          <option value="Month">Month</option>
-          <option value="Quarter">Quarter</option>
-        </select>
-      </div>
-      <div class="filter-group" *ngIf="tab !== 'results' || periodType === 'Month'">
-        <label for="pac-month">Month:</label>
-        <select id="pac-month" class="filter-select" [(ngModel)]="month" (ngModelChange)="onPeriodChange()">
-          <option *ngFor="let m of months" [ngValue]="m.value">{{ m.label }}</option>
-        </select>
-      </div>
-      <div class="filter-group" *ngIf="tab === 'results' && periodType === 'Quarter'">
-        <label for="pac-quarter">Quarter:</label>
-        <select id="pac-quarter" class="filter-select" [(ngModel)]="quarter" (ngModelChange)="onPeriodChange()">
-          <option *ngFor="let q of quarters" [ngValue]="q.value">{{ q.label }}</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label for="pac-year">Year:</label>
-        <select id="pac-year" class="filter-select" [(ngModel)]="year" (ngModelChange)="onPeriodChange()">
-          <option *ngFor="let y of years" [ngValue]="y">{{ y }}</option>
-        </select>
-      </div>
+    <div class="header-filters" *ngIf="tab === 'data'">
       <div class="filter-group" *ngIf="tab === 'data'">
         <label for="pac-component">Component:</label>
         <select id="pac-component" class="filter-select" [(ngModel)]="dataComponentId" (ngModelChange)="loadDataRows()">

@@ -1,5 +1,115 @@
-/* Additions on top of the Tower / Routine Maintenance platform theme
-   (../tm-activity-plan/tm-activity-plan.component.scss is loaded first via styleUrls). */
+/* IP NW OP layout adapted for the Power & A/C KPI data and actions. */
+
+.page-container {
+  min-height: calc(100vh - 110px);
+  padding: 1.5rem 1.5rem 1rem;
+  background-color: #f8f9fb;
+}
+
+.page-header {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+
+  h1 {
+    color: #0057a6;
+    font-size: 2.1rem;
+    font-weight: 600;
+    margin: 0 0 .5rem;
+    font-family: Arial, sans-serif;
+  }
+
+  .page-subtitle {
+    color: #6b7b8c;
+    font-size: 1rem;
+    margin: 0;
+  }
+}
+
+.header-info {
+  flex: 0 1 400px;
+  min-width: 260px;
+}
+
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  align-self: flex-start;
+}
+
+.pac-filters {
+  flex: 1 1 620px;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 0;
+  padding: 20px 28px;
+  border-radius: 32px;
+  background: linear-gradient(135deg, #5c9ee4, #2566c7);
+  border: 1px solid rgba(15, 23, 66, .35);
+  box-shadow: 0 16px 35px rgba(46, 75, 138, .25);
+}
+
+.pac-filter-column {
+  flex: 1 1 140px;
+  min-width: 120px;
+
+  .form-label {
+    display: block;
+    margin-bottom: 8px;
+    color: #fff;
+    font-size: .95rem;
+    font-weight: 600;
+  }
+
+  .form-select {
+    width: 100%;
+    height: 44px;
+    padding: 0 36px 0 16px;
+    border: 1px solid #cbd5e1;
+    border-radius: 20px;
+    background-color: #fff;
+    color: #1a1f2b;
+    font-size: .95rem;
+    font-weight: 500;
+  }
+}
+
+.selected-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 16px 20px;
+  border: 2px dashed #4a90e2;
+  border-radius: 12px;
+  background-color: #f8faff;
+
+  .filter-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .filter-label {
+    color: #64748b;
+    font-size: .85rem;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+
+  .filter-value {
+    color: #1e3a8a;
+    font-size: .9rem;
+    font-weight: 700;
+  }
+}
 
 .section-switcher {
   position: relative;
@@ -29,6 +139,22 @@
       border-color: #0057a6;
       background: #0057a6;
       color: #fff;
+    }
+
+    .pac-tabs {
+      margin-bottom: 1rem;
+    }
+
+    @media (max-width: 1399px) {
+      .header-info { flex: 1 1 320px; }
+      .pac-filters { order: 3; flex: 1 1 100%; }
+      .header-actions { order: 2; }
+    }
+
+    @media (max-width: 575px) {
+      .page-container { padding: 1rem .75rem; }
+      .header-info { min-width: 0; }
+      .pac-filters { flex-wrap: wrap; padding: 14px; }
     }
   }
 }
