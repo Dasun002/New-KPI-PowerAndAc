@@ -1,3 +1,8 @@
+.page-container {
+  position: relative;
+  z-index: 1;
+}
+
 /* IP NW OP layout adapted for the Power & A/C KPI data and actions. */
 
 .page-container {
@@ -140,23 +145,23 @@
       background: #0057a6;
       color: #fff;
     }
-
-    .pac-tabs {
-      margin-bottom: 1rem;
-    }
-
-    @media (max-width: 1399px) {
-      .header-info { flex: 1 1 320px; }
-      .pac-filters { order: 3; flex: 1 1 100%; }
-      .header-actions { order: 2; }
-    }
-
-    @media (max-width: 575px) {
-      .page-container { padding: 1rem .75rem; }
-      .header-info { min-width: 0; }
-      .pac-filters { flex-wrap: wrap; padding: 14px; }
-    }
   }
+}
+
+.pac-tabs {
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 1399px) {
+  .header-info { flex: 1 1 320px; }
+  .pac-filters { order: 3; flex: 1 1 100%; }
+  .header-actions { order: 2; }
+}
+
+@media (max-width: 575px) {
+  .page-container { padding: 1rem .75rem; }
+  .header-info { min-width: 0; }
+  .pac-filters { flex-wrap: wrap; padding: 14px; }
 }
 
 .data-card header {
