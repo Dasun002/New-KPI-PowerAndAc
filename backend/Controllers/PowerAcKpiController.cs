@@ -130,15 +130,23 @@ namespace backend.Controllers
                 };
             }).ToList();
 
-            // Weights come from the snapshot itself (what was actually used), not from today's configuration.
+            // Keep the stored component scores historical, but show the effective configuration weight
+            // on the platform screen so admin changes are visible without recalculating the snapshot.
             var snapshotWeights = rows
                 .SelectMany(r => r.ComponentScores)
                 .GroupBy(s => s.ComponentId)
                 .ToDictionary(g => g.Key, g => g.Select(s => s.WeightPercent).FirstOrDefault(w => w != null));
             var usedComponentIds = snapshotWeights.Keys.ToHashSet();
-            var weightTotal = snapshotWeights.Values.Sum(w => w ?? 0m);
+            var configuredWeights = await _db.PowerAcComponentWeights.AsNoTracking().ToListAsync();
+            var effectiveWeights = components
+                .Where(c => usedComponentIds.Contains(c.Id))
+                .ToDictionary(
+                    c => c.Id,
+                    c => PowerAcConfigController.EffectiveWeight(configuredWeights, c.Id, p!.EndKey)?.WeightPercent
+                        ?? snapshotWeights.GetValueOrDefault(c.Id));
+            var weightTotal = effectiveWeights.Values.Sum(w => w ?? 0m);
             var weightsValid = rows.Count > 0
-                && snapshotWeights.Values.All(w => w != null)
+                && effectiveWeights.Values.All(w => w != null)
                 && Math.Abs(weightTotal - 100m) <= 0.0001m;
 
             // Scoring versions recorded in the snapshot: show the method and approval that were actually used.
@@ -183,7 +191,7 @@ namespace backend.Controllers
                 Components = components
                     .Where(c => usedComponentIds.Count == 0 || usedComponentIds.Contains(c.Id))
                     .Select(c => PowerAcConfigController.ToDto(c,
-                        snapshotWeights.TryGetValue(c.Id, out var w) ? w : null,
+                        effectiveWeights.TryGetValue(c.Id, out var w) ? w : null,
                         snapshotVersions.TryGetValue(c.Id, out var v) ? v : null))
                     .ToList(),
                 Groups = groups
