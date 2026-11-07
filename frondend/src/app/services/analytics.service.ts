@@ -5,6 +5,7 @@ import { environment } from '../../environments/environment';
 
 export type AnalyticsResultApi = {
   kpiDefinitionId: number;
+  componentCode?: string;
   kpiName?: string;
   areaCode: string;
   achievedKpi: number;

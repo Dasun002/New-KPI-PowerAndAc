@@ -5,6 +5,7 @@ namespace backend.DTOs
     {
         // Identifies the KPI definition represented by this aggregation.
         public int KpiDefinitionId { get; set; }
+        public string? ComponentCode { get; set; }
         // Display name of the KPI.
         public string? KpiName { get; set; }
         // Area whose KPI values were aggregated.
