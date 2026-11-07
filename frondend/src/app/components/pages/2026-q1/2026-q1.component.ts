@@ -7,6 +7,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import * as ExcelJS from 'exceljs';
 import { environment } from '../../../../environments/environment';
 import { Subscription, forkJoin } from 'rxjs';
+import { PowerAcKpiService } from '../../../services/power-ac-kpi.service';
 
 export interface Region {
   id: number;
@@ -97,7 +98,8 @@ export class Q1Component implements OnInit, AfterViewInit, OnDestroy {
     private regionService: RegionService,
     private http: HttpClient,
     private cdr: ChangeDetectorRef,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private powerAcKpiService: PowerAcKpiService
   ) {
     const now = new Date();
     this.currentYear = 2026; 
@@ -362,6 +364,11 @@ export class Q1Component implements OnInit, AfterViewInit, OnDestroy {
             this.cdr.detectChanges();
             return;
           }
+          const powerAcComponents = await this.powerAcKpiService.getComponents(year, month).toPromise().catch(error => {
+            console.error('Failed loading Power & A/C components for Q1:', error);
+            return [];
+          });
+          this.replaceLegacyPowerAcRows(worksheet, powerAcComponents ?? []);
           const merges: string[] = ((worksheet.model as any).merges) || [];
           //const merges = worksheet.model.merges || [];
           const mergeMap = new Map<string, { rowspan: number; colspan: number }>();
@@ -582,6 +589,46 @@ export class Q1Component implements OnInit, AfterViewInit, OnDestroy {
         this.cdr.detectChanges();
       }
     });
+  }
+
+  private replaceLegacyPowerAcRows(
+    worksheet: ExcelJS.Worksheet,
+    components: Array<{ name: string }>
+  ): void {
+    const activeComponents = components.filter(component => component.name).slice(0, 4);
+    if (activeComponents.length !== 4) return;
+
+    let legacyRowNumber: number | null = null;
+    let kpiColumn = 0;
+    worksheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+      row.eachCell({ includeEmpty: true }, (cell, columnNumber) => {
+        const value = String(cell.value ?? '').toLowerCase();
+        if (value.includes('o&m of power') || value.includes('power & aircondition')) {
+          legacyRowNumber = rowNumber;
+          kpiColumn = columnNumber;
+        }
+      });
+    });
+    if (!legacyRowNumber || !kpiColumn) return;
+
+    const sourceRow = worksheet.getRow(legacyRowNumber);
+    const sourceValues = Array.from({ length: worksheet.columnCount }, (_, index) =>
+      sourceRow.getCell(index + 1).value
+    );
+    const rows = activeComponents.map(component => {
+      const values = [...sourceValues];
+      values[kpiColumn - 1] = component.name;
+      if (kpiColumn > 1) values[kpiColumn - 2] = 'Power & AC';
+      return values;
+    });
+    worksheet.spliceRows(legacyRowNumber, 1, ...rows);
+
+    for (let offset = 0; offset < rows.length; offset++) {
+      const row = worksheet.getRow(legacyRowNumber + offset);
+      for (let column = 1; column <= worksheet.columnCount; column++) {
+        row.getCell(column).style = { ...sourceRow.getCell(column).style };
+      }
+    }
   }
 
   exportToExcel(): void {
