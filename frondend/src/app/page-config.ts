@@ -146,11 +146,6 @@ export const adminNavOptions: NavOption[] = [
     title: 'Admin — Routine Maintenance'
   },
   {
-    label: 'Power & A/C',
-    path: 'admin/power-ac',
-    title: 'Admin — Power & A/C'
-  },
-  {
     label: 'Power & A/C KPI Config',
     path: 'admin/power-ac-config',
     title: 'Admin — Power & A/C KPI Configuration'
