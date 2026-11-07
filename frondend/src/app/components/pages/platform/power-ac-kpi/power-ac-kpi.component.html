@@ -54,26 +54,12 @@
   <nav class="section-switcher pac-tabs" role="tablist">
     <button type="button" role="tab" [class.active]="tab === 'results'" [attr.aria-selected]="tab === 'results'" (click)="setTab('results')"><i class="bi bi-clipboard-data-fill"></i>Results</button>
     <button type="button" role="tab" [class.active]="tab === 'allocations'" [attr.aria-selected]="tab === 'allocations'" (click)="setTab('allocations')"><i class="bi bi-diagram-3-fill"></i>Area Allocation</button>
-    <button *ngIf="canEnterData" type="button" role="tab" [class.active]="tab === 'data'" [attr.aria-selected]="tab === 'data'" (click)="setTab('data')"><i class="bi bi-pencil-square"></i>Component Data</button>
-    <button *ngIf="canVerify" type="button" role="tab" [class.active]="tab === 'review'" [attr.aria-selected]="tab === 'review'" (click)="setTab('review')"><i class="bi bi-patch-check-fill"></i>Review</button>
   </nav>
 
   <div class="selected-filters mb-4">
     <div class="filter-chip"><span class="filter-label">Period:</span><span class="filter-value">{{ periodLabel }}</span></div>
     <div class="filter-chip"><span class="filter-label">View:</span><span class="filter-value">{{ tab | titlecase }}</span></div>
   </div>
-
-  <!-- Filters for secondary data-entry views. -->
-  <ng-template #periodFilters>
-    <div class="header-filters" *ngIf="tab === 'data'">
-      <div class="filter-group" *ngIf="tab === 'data'">
-        <label for="pac-component">Component:</label>
-        <select id="pac-component" class="filter-select" [(ngModel)]="dataComponentId" (ngModelChange)="loadDataRows()">
-          <option *ngFor="let c of entryComponents" [ngValue]="c.id">{{ c.name }}</option>
-        </select>
-      </div>
-    </div>
-  </ng-template>
 
   <section class="table-section">
     <div class="state" *ngIf="loading">Loading Power &amp; A/C KPI data...</div>
@@ -99,7 +85,6 @@
               <button type="button" class="header-link" (click)="refreshPreview()" [disabled]="loading">Refresh preview</button>
             </p>
           </div>
-          <ng-container *ngTemplateOutlet="periodFilters"></ng-container>
         </header>
 
         <div class="table-wrapper">
@@ -160,7 +145,6 @@
                 (click)="saveAllocations()" [disabled]="loading || allocationEdits.length === 0">Save {{ allocationEdits.length }} change(s)</button>
             </p>
           </div>
-          <ng-container *ngTemplateOutlet="periodFilters"></ng-container>
         </header>
         <div class="table-wrapper">
           <table class="data-table">
@@ -195,121 +179,5 @@
       </article>
     </ng-container>
 
-    <!-- ===================== COMPONENT DATA ===================== -->
-    <ng-container *ngIf="tab === 'data'">
-      <div class="state" *ngIf="dataComponent?.scoringMethod === 'Pending'">
-        The scoring formula for {{ dataComponent?.name }} is pending business confirmation. Data can still be recorded.
-      </div>
-      <article class="data-card">
-        <header>
-          <div>
-            <h2><i class="bi bi-pencil-square me-2"></i>{{ dataComponent?.name || 'Component' }} Data Entry</h2>
-            <p>Saving stores a row as Draft; submit it when it is ready for verification. Preventive Maintenance is entered on the Power &amp; A/C admin screen.</p>
-          </div>
-          <ng-container *ngTemplateOutlet="periodFilters"></ng-container>
-        </header>
-        <div class="table-wrapper">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>NW EE</th>
-                <ng-container *ngIf="isIncidentComponent; else countHeaders"><th>Incidents</th></ng-container>
-                <ng-template #countHeaders><th>Applicable</th><th>Completed</th><th>Achievement %</th></ng-template>
-                <th>Remarks</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <ng-container *ngFor="let row of dataRows">
-              <tr>
-                <td>{{ groupHeader(row.group) }}</td>
-                <ng-container *ngIf="isIncidentComponent; else countCells">
-                  <td class="input-cell"><input type="number" min="0" step="1" class="form-control form-control-sm" [(ngModel)]="row.incidentCount" [disabled]="!rowEditable(row)" [attr.aria-label]="'Incidents for ' + row.group.code"></td>
-                </ng-container>
-                <ng-template #countCells>
-                  <td class="input-cell"><input type="number" min="0" class="form-control form-control-sm" [(ngModel)]="row.applicableCount" [disabled]="!rowEditable(row)" [attr.aria-label]="'Applicable for ' + row.group.code"></td>
-                  <td class="input-cell"><input type="number" min="0" class="form-control form-control-sm" [(ngModel)]="row.completedCount" [disabled]="!rowEditable(row)" [attr.aria-label]="'Completed for ' + row.group.code"></td>
-                  <td class="input-cell"><input type="number" min="0" max="100" class="form-control form-control-sm" [(ngModel)]="row.achievementPercent" [disabled]="!rowEditable(row)" [attr.aria-label]="'Achievement percent for ' + row.group.code"></td>
-                </ng-template>
-                <td class="input-cell"><input type="text" maxlength="500" class="form-control form-control-sm" [(ngModel)]="row.remarks" [disabled]="!rowEditable(row)"></td>
-                <td>
-                  <span class="status-pill" [ngClass]="statusClass(row.record?.status)">{{ row.record?.status ?? 'Not entered' }}</span>
-                  <small *ngIf="row.record?.reviewComment" class="d-block text-muted mt-1">{{ row.record?.reviewComment }}</small>
-                  <div *ngIf="row.error" class="invalid-feedback d-block">{{ row.error }}</div>
-                </td>
-                <td>
-                  <div class="row-actions">
-                    <button type="button" class="table-action save" (click)="saveRow(row)" [disabled]="row.saving || !rowEditable(row)">Save</button>
-                    <button type="button" class="table-action submit" (click)="submitRow(row)"
-                      [disabled]="row.saving || !row.record || (row.record.status !== 'Draft' && row.record.status !== 'Rejected')">Submit</button>
-                    <button type="button" class="table-action history" (click)="toggleHistory(row)" [disabled]="!row.record">History</button>
-                  </div>
-                </td>
-              </tr>
-              <tr *ngIf="row.record && history[row.record.id] as entries" class="history-row">
-                <td [attr.colspan]="isIncidentComponent ? 5 : 7">
-                  <table class="data-table history-table">
-                    <thead><tr><th>When</th><th>Action</th><th>Status</th><th>By</th><th>Comment</th></tr></thead>
-                    <tbody>
-                      <tr *ngFor="let h of entries">
-                        <td>{{ h.changedAt | date:'medium' }}</td>
-                        <td>{{ h.action }}</td>
-                        <td>{{ h.fromStatus || '—' }} → {{ h.toStatus || '—' }}</td>
-                        <td>{{ h.changedBy }}</td>
-                        <td>{{ h.comment || '—' }}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </td>
-              </tr>
-              </ng-container>
-              <tr *ngIf="!dataRows.length"><td colspan="7">You have no engineer groups assigned for data entry.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </article>
-    </ng-container>
-
-    <!-- ===================== REVIEW ===================== -->
-    <ng-container *ngIf="tab === 'review'">
-      <article class="data-card">
-        <header>
-          <div>
-            <h2><i class="bi bi-patch-check-fill me-2"></i>Submitted Records for Verification</h2>
-            <p>Records you entered or submitted yourself must be verified by someone else.</p>
-          </div>
-          <ng-container *ngTemplateOutlet="periodFilters"></ng-container>
-        </header>
-        <div class="table-wrapper">
-          <table class="data-table">
-            <thead>
-              <tr><th>NW EE</th><th>Component</th><th>Values</th><th>Remarks</th><th>Submitted</th><th>Comment</th><th>Actions</th></tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let r of reviewRecords">
-                <td>{{ groupHeaderById(r.engineerGroupId) }}</td>
-                <td>{{ componentName(r.componentId) }}</td>
-                <td>
-                  <ng-container *ngIf="r.incidentCount !== null">{{ r.incidentCount }} incident(s)</ng-container>
-                  <ng-container *ngIf="r.applicableCount !== null">{{ r.completedCount }} / {{ r.applicableCount }}</ng-container>
-                  <ng-container *ngIf="r.achievementPercent !== null"> {{ r.achievementPercent }}%</ng-container>
-                </td>
-                <td>{{ r.remarks }}</td>
-                <td>{{ r.submittedBy }} <small class="d-block text-muted">{{ r.submittedAt | date:'short' }}</small></td>
-                <td class="input-cell"><input type="text" maxlength="500" class="form-control form-control-sm" [(ngModel)]="reviewComments[r.id]" placeholder="Required to reject"></td>
-                <td>
-                  <div class="row-actions">
-                    <button type="button" class="table-action save" (click)="review(r, true)" [disabled]="loading">Verify</button>
-                    <button type="button" class="table-action reject" (click)="review(r, false)" [disabled]="loading">Reject</button>
-                  </div>
-                </td>
-              </tr>
-              <tr *ngIf="!reviewRecords.length"><td colspan="7">No submitted records for {{ months[month - 1].label }} {{ year }}.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </article>
-    </ng-container>
   </section>
 </div>
