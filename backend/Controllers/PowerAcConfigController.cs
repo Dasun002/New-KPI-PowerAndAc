@@ -58,6 +58,11 @@ namespace backend.Controllers
             var component = await _db.PowerAcComponents.FirstOrDefaultAsync(c => c.Code == code);
             if (component?.IsActive == true)
                 return Conflict(new { message = $"A component with code '{code}' already exists." });
+            if (await PowerAcRules.HasCalculatedResultsFromAsync(_db, dto.EffectiveYear, dto.EffectiveMonth))
+                return Conflict(new { message = "Results have already been calculated for this effective month or later. Choose a later effective month so earlier results stay reproducible." });
+            var createWeightError = await ValidateWeightTotalAsync(component?.Id ?? 0, dto.EffectiveYear, dto.EffectiveMonth, dto.WeightPercent, true);
+            if (createWeightError != null)
+                return BadRequest(new { message = createWeightError });
 
             var now = DateTime.UtcNow;
             var user = PowerAcAccessService.CurrentUserName(User);
@@ -185,6 +190,11 @@ namespace backend.Controllers
                 return BadRequest(new { message = "A Pending scoring method cannot be approved." });
             if (method == PowerAcScoringMethods.TargetScaled && dto.TargetValue <= 0m)
                 return BadRequest(new { message = "TargetScaled scoring needs a target above zero." });
+            if (await PowerAcRules.HasCalculatedResultsFromAsync(_db, dto.EffectiveYear, dto.EffectiveMonth))
+                return Conflict(new { message = "Results have already been calculated for this effective month or later. Choose a later effective month so earlier results stay reproducible." });
+            var updateWeightError = await ValidateWeightTotalAsync(id, dto.EffectiveYear, dto.EffectiveMonth, dto.WeightPercent, dto.IsActive);
+            if (updateWeightError != null)
+                return BadRequest(new { message = updateWeightError });
             var user = PowerAcAccessService.CurrentUserName(User);
             var now = DateTime.UtcNow;
             var version = await _db.PowerAcComponentVersions.FirstOrDefaultAsync(v =>
@@ -239,7 +249,7 @@ namespace backend.Controllers
 
             component.IsActive = dto.IsActive;
             component.Name = name;
-            component.DataSource = PowerAcDataSources.PowerAndAC;
+            // DataSource is fixed when the component is created. Updating a scoring version must never change it.
             component.SortOrder = dto.SortOrder;
             component.UpdatedAt = now;
             component.UpdatedBy = user;
@@ -280,6 +290,33 @@ namespace backend.Controllers
             var weights = await _db.PowerAcComponentWeights.AsNoTracking().ToListAsync();
             var key = PowerAcPeriod.Key(dto.EffectiveYear, dto.EffectiveMonth);
             return Ok(ToDto(component, EffectiveWeight(weights, component.Id, key)?.WeightPercent, version));
+        }
+
+        // Weight total for one effective month, with this component's new weight in place of its current one.
+        // Every active component needs an effective weight, and the total must be exactly 100%.
+        private async Task<string?> ValidateWeightTotalAsync(int componentId, int year, int month, decimal weight, bool isActive)
+        {
+            var key = PowerAcPeriod.Key(year, month);
+            var weights = await _db.PowerAcComponentWeights.AsNoTracking().ToListAsync();
+            var others = await _db.PowerAcComponents.AsNoTracking()
+                .Where(c => c.IsActive && c.Id != componentId)
+                .Select(c => new { c.Id, c.Code })
+                .ToListAsync();
+
+            decimal total = isActive ? weight : 0m;
+            var missing = new List<string>();
+            foreach (var other in others)
+            {
+                var effective = EffectiveWeight(weights, other.Id, key)?.WeightPercent;
+                if (effective is null) missing.Add(other.Code);
+                else total += effective.Value;
+            }
+
+            if (missing.Count > 0)
+                return $"No weight is effective for {string.Join(", ", missing)} in {year}-{month:00}. Save the full weight set first.";
+            if (Math.Abs(total - 100m) > 0.0001m)
+                return $"Active component weights for {year}-{month:00} would total {total:0.####}%. They must total 100%.";
+            return null;
         }
 
         [HttpDelete("components/{id:int}")]

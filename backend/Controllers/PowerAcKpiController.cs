@@ -130,8 +130,8 @@ namespace backend.Controllers
                 };
             }).ToList();
 
-            // Keep the stored component scores historical, but show the effective configuration weight
-            // on the platform screen so admin changes are visible without recalculating the snapshot.
+            // The saved view shows the weights the stored snapshot actually used. Configured weights are only a fallback
+            // for components that have no stored score, so later admin changes never alter a saved result.
             var snapshotWeights = rows
                 .SelectMany(r => r.ComponentScores)
                 .GroupBy(s => s.ComponentId)
@@ -142,8 +142,8 @@ namespace backend.Controllers
                 .Where(c => usedComponentIds.Contains(c.Id))
                 .ToDictionary(
                     c => c.Id,
-                    c => PowerAcConfigController.EffectiveWeight(configuredWeights, c.Id, p!.EndKey)?.WeightPercent
-                        ?? snapshotWeights.GetValueOrDefault(c.Id));
+                    c => snapshotWeights.GetValueOrDefault(c.Id)
+                        ?? PowerAcConfigController.EffectiveWeight(configuredWeights, c.Id, p!.EndKey)?.WeightPercent);
             var weightTotal = effectiveWeights.Values.Sum(w => w ?? 0m);
             var weightsValid = rows.Count > 0
                 && effectiveWeights.Values.All(w => w != null)
