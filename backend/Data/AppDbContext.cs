@@ -769,7 +769,8 @@ namespace backend.Data
                   // POWER AND AC
                   modelBuilder.Entity<PowerAndAC>(entity =>
                   {
-                        entity.ToTable("PowerAndAC", "dbo");
+                        // The table has a trigger, so EF must not use an OUTPUT clause when inserting or updating rows.
+                        entity.ToTable("PowerAndAC", "dbo", tb => tb.UseSqlOutputClause(false));
                         entity.HasKey(x => x.Id);
                         entity.Property(x => x.Id).HasColumnName("Id").ValueGeneratedOnAdd();
                         entity.Property(x => x.Designation).HasColumnName("Designation").HasMaxLength(100).IsRequired();

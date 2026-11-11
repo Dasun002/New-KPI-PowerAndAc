@@ -40,9 +40,9 @@ export const platformNavOptions: NavOption[] = [
   },
   {
     /* Removed: Other Operator KPI */
-    label: 'Other KPI',
+    label: 'Telemetry Device Availability',
     path: 'platform/other-kpi',
-    title: 'Platform KPI — Other KPI'
+    title: 'Platform KPI — Telemetry Device Availability'
   },
   {
     label: 'IP NW OP',
@@ -68,11 +68,6 @@ export const platformNavOptions: NavOption[] = [
     label: 'Routine Maintenance',
     path: 'platform/routine-mtnc',
     title: 'Platform KPI — Routine Maintenance'
-  },
-  {
-    label: 'Power & A/C',
-    path: 'platform/power-ac',
-    title: 'Platform KPI — Power & A/C'
   },
   {
     label: 'Power & A/C KPI',
@@ -151,11 +146,6 @@ export const adminNavOptions: NavOption[] = [
     title: 'Admin — Routine Maintenance'
   },
   {
-    label: 'Power & A/C',
-    path: 'admin/power-ac',
-    title: 'Admin — Power & A/C'
-  },
-  {
     label: 'Power & A/C KPI Config',
     path: 'admin/power-ac-config',
     title: 'Admin — Power & A/C KPI Configuration'
@@ -176,9 +166,9 @@ export const adminNavOptions: NavOption[] = [
     title: 'Admin — Enterprise KPI'
   },
   {
-    label: 'Other KPI',
+    label: 'Telemetry Device Availability',
     path: 'admin/other-kpi',
-    title: 'Admin — Other KPI'
+    title: 'Admin — Telemetry Device Availability'
   }
 ];
 

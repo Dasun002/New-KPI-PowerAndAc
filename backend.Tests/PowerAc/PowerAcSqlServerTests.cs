@@ -247,7 +247,7 @@ namespace backend.Tests.PowerAc
                 // Config for months covered by the snapshot is now locked.
                 var config = PowerAcTestHost.WithUser(new PowerAcConfigController(host.Db, host.Get<PowerAcAccessService>()), Admin);
                 var componentId = await host.Db.PowerAcComponents.Where(c => c.Code == "PM").Select(c => c.Id).SingleAsync();
-                var locked = await config.UpdateComponent(componentId, new UpdatePowerAcComponentDto { EffectiveYear = 2026, EffectiveMonth = 6, TargetValue = 100, ScoringMethod = "RatioCapped", ScoringApproved = false, IsActive = true, SortOrder = 1 });
+                var locked = await config.UpdateComponent(componentId, new UpdatePowerAcComponentDto { Name = "Test KPI", WeightPercent = 25, EffectiveYear = 2026, EffectiveMonth = 6, TargetValue = 100, ScoringMethod = "RatioCapped", ScoringApproved = false, IsActive = true, SortOrder = 1 });
                 Assert.IsType<ConflictObjectResult>(locked.Result);
 
                 Assert.True(await host.Db.PowerAcAuditLogs.CountAsync(a => a.EntityType == PowerAcAuditEntities.KpiCalculation && a.ChangedBy == "it-admin") >= 2);

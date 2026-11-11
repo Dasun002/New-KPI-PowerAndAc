@@ -18,7 +18,7 @@ import { OtherKpiService, OtherKpiRecord, CreateOtherKpi } from '../../../../ser
 })
 export class OtherKpiComponent implements OnInit {
 
-  pageTitle = 'Other KPI';
+  pageTitle = 'Telemetry Device Availability';
 
   records: OtherKpiRecord[] = [];
   editingId: number | null = null;

@@ -149,8 +149,10 @@ The existing PowerAndAC controller, service and table, and the Preventive Mainte
 | Method | Route | Who | Purpose |
 |---|---|---|---|
 | GET | /api/power-ac/config/components?year&month | Viewers | Components with the scoring version and weight effective that month |
+| POST | /api/power-ac/config/components | Admin | Add a KPI component with its initial target, category/data source, weight and effective month |
 | GET | /api/power-ac/config/components/{id}/versions | Viewers | Scoring version history |
 | PUT | /api/power-ac/config/components/{id} | Admin | Create or update a scoring version from an effective month, and approve or withdraw it |
+| DELETE | /api/power-ac/config/components/{id} | Admin | Deactivate a component while preserving historical snapshots |
 | GET / POST | /api/power-ac/config/weights | Viewers / Admin | Effective weights and history / save a new weight set (must total 100%) |
 | GET / POST | /api/power-ac/config/settings | Viewers / Admin | Points formula, composite target, approval, verification policy |
 | GET / PUT | /api/power-ac/config/engineer-groups[/{id}] | Viewers / Admin | 20 groups, regiondata link, PowerAndAC designation, verified flag |

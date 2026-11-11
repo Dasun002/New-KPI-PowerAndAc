@@ -151,11 +151,11 @@ namespace backend.Tests.PowerAc
             var config = Config(host, Admin);
 
             // Pending cannot be approved.
-            var pendingApproved = await config.UpdateComponent(2, new UpdatePowerAcComponentDto { EffectiveYear = 2026, EffectiveMonth = 7, TargetValue = 0, ScoringMethod = "Pending", ScoringApproved = true, IsActive = true });
+            var pendingApproved = await config.UpdateComponent(2, new UpdatePowerAcComponentDto { Name = "Test KPI", WeightPercent = 25, EffectiveYear = 2026, EffectiveMonth = 7, TargetValue = 0, ScoringMethod = "Pending", ScoringApproved = true, IsActive = true });
             Assert.IsType<BadRequestObjectResult>(pendingApproved.Result);
 
             // Approve a new version from July with a note.
-            var approved = await config.UpdateComponent(3, new UpdatePowerAcComponentDto { EffectiveYear = 2026, EffectiveMonth = 7, TargetValue = 100, ScoringMethod = "RatioStrict", ScoringApproved = true, ApprovalNote = "Board minute 12", IsActive = true, SortOrder = 3 });
+            var approved = await config.UpdateComponent(3, new UpdatePowerAcComponentDto { Name = "Test KPI", WeightPercent = 25, EffectiveYear = 2026, EffectiveMonth = 7, TargetValue = 100, ScoringMethod = "RatioStrict", ScoringApproved = true, ApprovalNote = "Board minute 12", IsActive = true, SortOrder = 3 });
             var dto = Assert.IsType<PowerAcComponentDto>(Assert.IsType<OkObjectResult>(approved.Result).Value);
             Assert.True(dto.ScoringApproved);
             Assert.Equal("admin1", dto.ApprovedBy);
@@ -163,7 +163,7 @@ namespace backend.Tests.PowerAc
             Assert.Equal("Board minute 12", july.ApprovalNote);
 
             // Changing the method of that version without re-approving withdraws approval.
-            await config.UpdateComponent(3, new UpdatePowerAcComponentDto { EffectiveYear = 2026, EffectiveMonth = 7, TargetValue = 100, ScoringMethod = "RatioCapped", ScoringApproved = false, IsActive = true, SortOrder = 3 });
+            await config.UpdateComponent(3, new UpdatePowerAcComponentDto { Name = "Test KPI", WeightPercent = 25, EffectiveYear = 2026, EffectiveMonth = 7, TargetValue = 100, ScoringMethod = "RatioCapped", ScoringApproved = false, IsActive = true, SortOrder = 3 });
             Assert.False(host.Db.PowerAcComponentVersions.Single(v => v.Id == july.Id).ScoringApproved);
 
             // January version is untouched (history preserved).
@@ -189,7 +189,7 @@ namespace backend.Tests.PowerAc
 
             var juneBefore = (await service.PreviewAsync(Month(6))).Output.Groups[0];
             // From July, availability becomes unapproved.
-            await config.UpdateComponent(4, new UpdatePowerAcComponentDto { EffectiveYear = 2026, EffectiveMonth = 7, TargetValue = 99, ScoringMethod = "TargetScaled", ScoringApproved = false, IsActive = true, SortOrder = 4 });
+            await config.UpdateComponent(4, new UpdatePowerAcComponentDto { Name = "Test KPI", WeightPercent = 25, EffectiveYear = 2026, EffectiveMonth = 7, TargetValue = 99, ScoringMethod = "TargetScaled", ScoringApproved = false, IsActive = true, SortOrder = 4 });
             var juneAfter = (await service.PreviewAsync(Month(6))).Output.Groups[0];
 
             Assert.Equal(PowerAcResultStatus.Complete, juneBefore.Status);
@@ -207,7 +207,7 @@ namespace backend.Tests.PowerAc
             await host.Get<PowerAcKpiCalculationService>().CalculateAndPersistAsync(Month(1), "calc");
 
             var config = Config(host, Admin);
-            var blocked = await config.UpdateComponent(1, new UpdatePowerAcComponentDto { EffectiveYear = 2026, EffectiveMonth = 1, TargetValue = 100, ScoringMethod = "RatioStrict", ScoringApproved = true, IsActive = true, SortOrder = 1 });
+            var blocked = await config.UpdateComponent(1, new UpdatePowerAcComponentDto { Name = "Test KPI", WeightPercent = 25, EffectiveYear = 2026, EffectiveMonth = 1, TargetValue = 100, ScoringMethod = "RatioStrict", ScoringApproved = true, IsActive = true, SortOrder = 1 });
             Assert.IsType<ConflictObjectResult>(blocked.Result);
         }
 

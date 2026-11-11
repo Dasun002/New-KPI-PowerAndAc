@@ -122,7 +122,9 @@ All routes need a logged-in user. None are anonymous. "View" means `ViewPagePoli
 | Method | Route | Who | Purpose |
 |---|---|---|---|
 | GET | /api/power-ac/config/components?year&month | View | Components with effective weight and allowed methods |
+| POST | /api/power-ac/config/components | AdminOnly | Add a KPI component with its initial target, category/data source, weight and effective month; reactivates a matching previously deactivated code |
 | PUT | /api/power-ac/config/components/{id} | AdminOnly | Target, scoring method, parameter, approval, active |
+| DELETE | /api/power-ac/config/components/{id} | AdminOnly | Deactivate a component while preserving historical snapshots |
 | GET | /api/power-ac/config/weights?year&month | View | Effective weights, total, history |
 | POST | /api/power-ac/config/weights | AdminOnly | New weight set `{effectiveYear, effectiveMonth, weights[]}`. Must total 100 |
 | GET | /api/power-ac/config/settings | View | Settings history with Points Applicable |

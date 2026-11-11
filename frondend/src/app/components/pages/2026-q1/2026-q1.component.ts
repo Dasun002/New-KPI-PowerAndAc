@@ -7,6 +7,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import * as ExcelJS from 'exceljs';
 import { environment } from '../../../../environments/environment';
 import { Subscription, forkJoin } from 'rxjs';
+import { PowerAcKpiService } from '../../../services/power-ac-kpi.service';
 
 export interface Region {
   id: number;
@@ -80,6 +81,7 @@ export class Q1Component implements OnInit, AfterViewInit, OnDestroy {
   totalPointsAchievedByRegion: number[] = [];
   totalPointsNormalized: number[] = [];
   noDefinitions = false;
+  private powerAcDefinition: KpiDefinition | null = null;
 
   @ViewChildren('leftRowRef', { read: ElementRef })
   private leftRowElements!: QueryList<ElementRef<HTMLTableRowElement>>;
@@ -97,7 +99,8 @@ export class Q1Component implements OnInit, AfterViewInit, OnDestroy {
     private regionService: RegionService,
     private http: HttpClient,
     private cdr: ChangeDetectorRef,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private powerAcKpiService: PowerAcKpiService
   ) {
     const now = new Date();
     this.currentYear = 2026; 
@@ -316,6 +319,9 @@ export class Q1Component implements OnInit, AfterViewInit, OnDestroy {
         } else {
           this.noDefinitions = false;
           const list = definitions.sort((a, b) => a.id - b.id);
+          this.powerAcDefinition = list.find(row =>
+            /power\s*&\s*air|power\s*&\s*ac/i.test(row.keyPerformanceIndicators)
+          ) ?? null;
           this.kpiRows = list.map((row, rowIndex) => ({
              id: row.id,
              number: rowIndex + 1,
@@ -362,6 +368,23 @@ export class Q1Component implements OnInit, AfterViewInit, OnDestroy {
             this.cdr.detectChanges();
             return;
           }
+          const configuration = await Promise.all([
+            this.powerAcKpiService.getComponents(year, month).toPromise(),
+            this.powerAcKpiService.getSettings().toPromise()
+          ]).catch(error => {
+            console.error('Failed loading Power & A/C configuration for Q1:', error);
+            return null;
+          });
+          const powerAcComponents = configuration?.[0] ?? [];
+          const powerAcSettings = configuration?.[1] ?? [];
+          const periodSetting = (powerAcSettings ?? []).find(setting =>
+            setting.effectiveYear === year && setting.effectiveMonth === month
+          );
+          this.replaceLegacyPowerAcRows(
+            worksheet,
+            powerAcComponents ?? [],
+            periodSetting?.pointsApplicable ?? this.powerAcDefinition?.pointsApplicable ?? 0
+          );
           const merges: string[] = ((worksheet.model as any).merges) || [];
           //const merges = worksheet.model.merges || [];
           const mergeMap = new Map<string, { rowspan: number; colspan: number }>();
@@ -582,6 +605,82 @@ export class Q1Component implements OnInit, AfterViewInit, OnDestroy {
         this.cdr.detectChanges();
       }
     });
+  }
+
+  private replaceLegacyPowerAcRows(
+    worksheet: ExcelJS.Worksheet,
+    components: Array<{ name: string; targetValue: number; currentWeightPercent: number | null }>,
+    totalPoints: number
+  ): void {
+    const activeComponents = components.filter(component => component.name).slice(0, 4);
+    if (activeComponents.length !== 4) return;
+
+    let legacyRowNumber: number | null = null;
+    let kpiColumn = 0;
+    worksheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+      row.eachCell({ includeEmpty: true }, (cell, columnNumber) => {
+        const value = String(cell.value ?? '').toLowerCase();
+        if (value.includes('o&m of power') || value.includes('power & aircondition')) {
+          legacyRowNumber = rowNumber;
+          kpiColumn = columnNumber;
+        }
+      });
+    });
+    if (!legacyRowNumber || !kpiColumn) return;
+
+    const sourceRow = worksheet.getRow(legacyRowNumber);
+    const followingRow = worksheet.getRow(legacyRowNumber + 1);
+    const sourceStyles = Array.from({ length: worksheet.columnCount }, (_, index) =>
+      ({ ...sourceRow.getCell(index + 1).style })
+    );
+    const followingStyles = Array.from({ length: worksheet.columnCount }, (_, index) =>
+      ({ ...followingRow.getCell(index + 1).style })
+    );
+    const sourceValues = Array.from({ length: worksheet.columnCount }, (_, index) =>
+      sourceRow.getCell(index + 1).value
+    );
+    const totalWeight = activeComponents.reduce((sum, component) =>
+      sum + (component.currentWeightPercent ?? 0), 0
+    );
+    const legacyNumber = Number(sourceValues[0]);
+    const rows = activeComponents.map(component => {
+      const values = [...sourceValues];
+      values[kpiColumn - 1] = component.name;
+      if (kpiColumn > 1) values[kpiColumn - 2] = 'Power & AC';
+      if (kpiColumn + 1 <= values.length) values[kpiColumn] = component.targetValue;
+      if (kpiColumn + 2 <= values.length) {
+        const weightPercent = component.currentWeightPercent ?? 0;
+        values[kpiColumn + 1] = totalWeight > 0 ? weightPercent / 100 : sourceValues[kpiColumn + 1];
+      }
+      if (kpiColumn + 3 <= values.length) {
+        const weightPercent = component.currentWeightPercent ?? 0;
+        values[kpiColumn + 2] = totalWeight > 0
+          ? Math.round(totalPoints * (weightPercent / totalWeight))
+          : sourceValues[kpiColumn + 2];
+      }
+      return values;
+    });
+    worksheet.spliceRows(legacyRowNumber, 1, ...rows);
+
+    for (let offset = 0; offset < rows.length; offset++) {
+      const row = worksheet.getRow(legacyRowNumber + offset);
+      for (let column = 1; column <= worksheet.columnCount; column++) {
+        row.getCell(column).style = column > kpiColumn + 2
+          ? { ...followingStyles[column - 1] }
+          : { ...sourceStyles[column - 1] };
+      }
+      row.height = sourceRow.height;
+    }
+
+    if (Number.isFinite(legacyNumber)) {
+      let nextNumber = legacyNumber;
+      for (let rowNumber = legacyRowNumber; rowNumber <= worksheet.rowCount; rowNumber++) {
+        const row = worksheet.getRow(rowNumber);
+        const value = Number(row.getCell(1).value);
+        if (!Number.isFinite(value)) continue;
+        row.getCell(1).value = nextNumber++;
+      }
+    }
   }
 
   exportToExcel(): void {

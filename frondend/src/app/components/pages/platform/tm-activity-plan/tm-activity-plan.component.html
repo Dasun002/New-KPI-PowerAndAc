@@ -66,13 +66,16 @@
                   <td>{{ row.calculation || '-' }}</td>
                   <td *ngFor="let value of calculatedValues; let colIndex = index" class="achievement-cell">
                     {{ value || '0.00' }}%
-                    <div class="approval-icon"
-                         *ngIf="getMainTableDetailId(rowIndex, colIndex) !== undefined"
+                    <button type="button" class="approval-icon"
+                         *ngIf="getMainTableDetailId(rowIndex, colIndex) as detailId"
+                         [disabled]="!canVerifyMetrics || isVerifying(detailId)"
                          [ngClass]="getMainTableIsVerified(rowIndex, colIndex) ? 'approved' : 'unapproved'"
-                         title="Verification status">
+                         [attr.aria-label]="getMainTableIsVerified(rowIndex, colIndex) ? 'Verified' : 'Verify data'"
+                         [title]="canVerifyMetrics ? 'Click to toggle verification' : 'Verification status'"
+                         (click)="toggleMainTableVerified(rowIndex, colIndex)">
                       <i class="bi bi-check" *ngIf="getMainTableIsVerified(rowIndex, colIndex)"></i>
                       <i class="bi bi-x" *ngIf="!getMainTableIsVerified(rowIndex, colIndex)"></i>
-                    </div>
+                    </button>
                   </td>
                 </tr>
               </tbody>
@@ -126,14 +129,16 @@
                     <td>{{ getDetailValue(entry, header, 'Column2') }}</td>
                     <td class="achievement-cell">
                       {{ getDetailValue(entry, header, 'Column3') }}
-                      <div class="approval-icon"
-                           *ngIf="getDetailId(entry, header)"
+                      <button type="button" class="approval-icon"
+                           *ngIf="getDetailId(entry, header) as detailId"
+                           [disabled]="!canVerifyMetrics || isVerifying(detailId)"
                            [ngClass]="getIsVerified(entry, header) ? 'approved' : 'unapproved'"
-                           (click)="toggleVerified(entry, header)"
-                           [title]="canEditMetrics ? 'Click to toggle approval' : 'Verification status'">
+                           [attr.aria-label]="getIsVerified(entry, header) ? 'Verified' : 'Verify data'"
+                           [title]="canVerifyMetrics ? 'Click to toggle verification' : 'Verification status'"
+                           (click)="toggleVerified(entry, header)">
                         <i class="bi bi-check" *ngIf="getIsVerified(entry, header)"></i>
                         <i class="bi bi-x" *ngIf="!getIsVerified(entry, header)"></i>
-                      </div>
+                      </button>
                     </td>
                   </ng-container>
                 </tr>

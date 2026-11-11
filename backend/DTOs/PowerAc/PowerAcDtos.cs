@@ -68,6 +68,12 @@ namespace backend.DTOs.PowerAc
 
     public class UpdatePowerAcComponentDto
     {
+        [Required, StringLength(150)]
+        public string Name { get; set; } = string.Empty;
+
+        [Required, StringLength(30)]
+        public string DataSource { get; set; } = "PowerAndAC";
+
         // The scoring version applies from this month onwards.
         [Range(2000, 9999)]
         public int EffectiveYear { get; set; }
@@ -81,6 +87,9 @@ namespace backend.DTOs.PowerAc
         [Range(0, 100000)]
         public decimal TargetValue { get; set; }
 
+        [Range(0, 100)]
+        public decimal WeightPercent { get; set; }
+
         [Required, StringLength(40)]
         public string ScoringMethod { get; set; } = string.Empty;
 
@@ -91,6 +100,36 @@ namespace backend.DTOs.PowerAc
         public bool ScoringApproved { get; set; }
 
         public bool IsActive { get; set; } = true;
+
+        [Range(0, 1000)]
+        public int SortOrder { get; set; }
+    }
+
+    public class CreatePowerAcComponentDto
+    {
+        [Required, StringLength(30)]
+        public string Code { get; set; } = string.Empty;
+
+        [Required, StringLength(150)]
+        public string Name { get; set; } = string.Empty;
+
+        [Range(0, 100000)]
+        public decimal TargetValue { get; set; }
+
+        [Required, StringLength(20)]
+        public string TargetUnit { get; set; } = "%";
+
+        [Required, StringLength(30)]
+        public string DataSource { get; set; } = "ComponentResult";
+
+        [Range(0, 100)]
+        public decimal WeightPercent { get; set; }
+
+        [Range(2000, 9999)]
+        public int EffectiveYear { get; set; }
+
+        [Range(1, 12)]
+        public int EffectiveMonth { get; set; }
 
         [Range(0, 1000)]
         public int SortOrder { get; set; }

@@ -84,6 +84,9 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  border: 0;
+  padding: 0;
+  font: inherit;
   box-shadow: 0 1px 3px rgba(0,0,0,0.2);
   transition: all 0.2s;
 }
@@ -103,8 +106,11 @@
   color: white;
 }
 
-.approval-icon:hover {
+.approval-icon:not(:disabled):hover {
   opacity: 0.9;
   transform: scale(1.1);
 }
 
+.approval-icon:disabled {
+  cursor: default;
+}

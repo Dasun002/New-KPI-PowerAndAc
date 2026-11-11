@@ -18,6 +18,7 @@ import { saveAs } from 'file-saver';
 import { Subscription } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { AnalyticsService } from '../../../services/analytics.service';
+import { PowerAcKpiService } from '../../../services/power-ac-kpi.service';
 import { FilterUtils } from '../../../utils/filter.utils';
 import { Region as RegionApi, RegionService } from '../../../services/region.service';
 import { formatEngineerDisplay, getAreaLookupAliases } from '../../../utils/region-display.utils';
@@ -137,6 +138,7 @@ export class AnalyticsComponent implements OnInit, AfterViewInit, OnDestroy {
     private http: HttpClient,
     private regionService: RegionService,
     private analyticsService: AnalyticsService,
+    private powerAcKpiService: PowerAcKpiService,
     private cdr: ChangeDetectorRef
   ) {
     const now = new Date();
@@ -453,7 +455,8 @@ return {
           return;
         }
 
-        this.kpiRows = list.map((row, rowIndex) => {
+        const applyDefinitions = (definitions: KpiDefinition[]) => {
+          this.kpiRows = definitions.map((row, rowIndex) => {
           const metrics: KpiMetric[] = this.engineersFlat.map(() => {
             return { achieved: null, maximumPoints: 0, pointsAchieved: 0 };
           });
@@ -473,12 +476,42 @@ return {
             pointsApplicable: row.pointsApplicable ?? 0,
             metrics,
           };
-        });
+          });
 
-        this.computeTotals();
-        this.buildDashboardGroups();
-        this.scheduleRowSync();
-        this.loadAnalyticsResults();
+          this.computeTotals();
+          this.buildDashboardGroups();
+          this.scheduleRowSync();
+          this.loadAnalyticsResults();
+        };
+
+        const powerAcDefinition = list.find(row =>
+          /power/i.test(row.keyPerformanceIndicators) && /air/i.test(row.keyPerformanceIndicators)
+        );
+        if (!powerAcDefinition) {
+          applyDefinitions(list);
+          return;
+        }
+
+        this.powerAcKpiService.getComponents(year, month).subscribe({
+          next: components => {
+            const expanded = list.flatMap(row => row.id !== powerAcDefinition.id
+              ? [row]
+              : components.filter(component => component.isActive).map(component => ({
+                  ...row,
+                  id: -component.id,
+                  category: 'Power & AC',
+                  keyPerformanceIndicators: component.name,
+                  descriptionOfKPI: `${component.targetValue} ${component.targetUnit}`,
+                  weightage: component.currentWeightPercent ?? 0,
+                  pointsApplicable: Math.round((row.pointsApplicable * (component.currentWeightPercent ?? 0)) / (powerAcDefinition.weightage || 100))
+                })));
+            applyDefinitions(expanded);
+          },
+          error: err => {
+            console.error('Failed loading Power & A/C KPI components for analytics:', err);
+            applyDefinitions(list);
+          }
+        });
       },
       error: (err: any) => {
         console.error('Failed loading final table KPI rows:', err);

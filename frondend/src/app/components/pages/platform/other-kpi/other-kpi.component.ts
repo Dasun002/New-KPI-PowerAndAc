@@ -42,7 +42,7 @@ interface AreaRow {
   styleUrls: ['./other-kpi.component.scss']
 })
 export class OtherKpiComponent implements OnInit {
-  pageTitle = 'Other KPI';
+  pageTitle = 'Telemetry Device Availability';
 
   // ── Telemetry filter state ──
   telMonth: number = new Date().getMonth() + 1;
@@ -75,7 +75,7 @@ export class OtherKpiComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.isEditingAllowed = this.authService.canEditPage('Other KPI');
+    this.isEditingAllowed = this.authService.canEditPage('Telemetry Device Availability');
     this.loadRegions();
     this.loadPowerAndAC();
   }

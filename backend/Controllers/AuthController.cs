@@ -158,7 +158,7 @@ namespace backend.Controllers
                 }
             }
 
-            return Ok(new { token, user.Name, Role = user.Role?.RoleName, Pages = pages, AssignedPages = assignedPages });
+            return Ok(new { token, user.Name, ServiceId = user.ServiceId, Role = user.Role?.RoleName, Pages = pages, AssignedPages = assignedPages });
         }
 
         // =========================================================

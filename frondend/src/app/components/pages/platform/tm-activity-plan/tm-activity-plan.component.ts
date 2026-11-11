@@ -83,6 +83,12 @@ export class TmActivityPlanComponent implements OnInit {
       || this.authService.canEditPage('TM Activity Plan');
   }
 
+  get canVerifyMetrics(): boolean {
+    return this.authService.userValue?.serviceId === '010399' || this.canEditMetrics;
+  }
+
+  private readonly verifyingDetailIds = new Set<number>();
+
   /* ===================== FILTER STATE ===================== */
 
   private readonly now = new Date();
@@ -270,6 +276,11 @@ export class TmActivityPlanComponent implements OnInit {
     return detail?.isVerified ?? false;
   }
 
+  toggleMainTableVerified(rowIndex: number, colIndex: number): void {
+    const detail = this.getMainTableDetail(rowIndex, colIndex);
+    if (detail) this.toggleDetailVerified(detail);
+  }
+
   /**
    * Shared lookup for the main table cell detail based on the selected month
    * (and the corresponding header). rowIndex is accepted for symmetry with the
@@ -378,25 +389,36 @@ export class TmActivityPlanComponent implements OnInit {
   }
 
   toggleVerified(entry: ProcessedRecord, header: string): void {
-    if (!this.canEditMetrics) return;
     const detail = entry.details.find(item => item.Column1 === header);
     if (detail?.id) {
       this.toggleDetailVerified(detail);
     }
   }
 
+  isVerifying(detailId?: number): boolean {
+    return detailId !== undefined && this.verifyingDetailIds.has(detailId);
+  }
+
   private toggleDetailVerified(detail: ProcessedDetail): void {
-    if (detail.id) {
-      this.http.patch<{ id: number; isVerified: boolean }>(`${environment.apiUrl}/tower-mtc-data/${detail.id}/toggle-verified`, {}).subscribe({
+    const detailId = detail.id;
+    if (!this.canVerifyMetrics || detailId === undefined || this.verifyingDetailIds.has(detailId)) return;
+
+    this.verifyingDetailIds.add(detailId);
+    this.http.patch<{ id: number; isVerified: boolean }>(`${environment.apiUrl}/tower-mtc-data/${detailId}/toggle-verified`, {})
+      .pipe(finalize(() => {
+        this.verifyingDetailIds.delete(detailId);
+        this.cdr.detectChanges();
+      }))
+      .subscribe({
         next: (res) => {
           detail.isVerified = res.isVerified;
           this.cdr.detectChanges();
         },
         error: (err) => {
           console.error('Toggle verified failed', err);
+          this.setError('Unable to update verification status. Please try again.');
         }
       });
-    }
   }
 
   private loadEngineerNames(): void {

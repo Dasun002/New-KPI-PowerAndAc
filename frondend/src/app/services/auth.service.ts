@@ -17,6 +17,7 @@ import { environment } from '../../environments/environment';
 export interface User {
   /* JWT authentication token */
   token: string;
+  serviceId?: string;
   /* User's display name */
   name: string;
   /* User's role (Admin, User, etc.) */
@@ -30,6 +31,8 @@ export interface User {
 /* Login API response structure */
 type LoginResponse = {
   token: string;
+  ServiceId?: string;
+  serviceId?: string;
   Name?: string;
   Role?: string;
   Pages?: string[];
@@ -87,6 +90,7 @@ export class AuthService {
   private mapLoginResponse(res: LoginResponse): User {
     return {
       token: res.token,
+      serviceId: res.serviceId ?? res.ServiceId,
       name: res.name ?? res.Name ?? '',
       role: res.role ?? res.Role ?? '',
       pages: res.pages ?? res.Pages ?? [],

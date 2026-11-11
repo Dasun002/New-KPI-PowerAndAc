@@ -65,7 +65,7 @@ export class AdminDropdownComponent implements OnChanges {
     'OTN OP 1',
     'OTN OP 2',
     'Enterprise KPI',
-    'Other KPI'
+    'Telemetry Device Availability'
   ]);
 
   private readonly authService = inject(AuthService);
@@ -147,4 +147,3 @@ export class AdminDropdownComponent implements OnChanges {
     return role !== 'PlatformAdmin' && role !== 'User';
   }
 }
-

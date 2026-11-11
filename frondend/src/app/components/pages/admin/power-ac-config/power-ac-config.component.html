@@ -5,18 +5,11 @@
   </div>
 
   <div class="dashboard-container">
-    <nav class="section-switcher" role="tablist">
-      <button type="button" role="tab" [class.active]="tab === 'weights'" (click)="setTab('weights')"><i class="bi bi-sliders"></i>Weights</button>
-      <button type="button" role="tab" [class.active]="tab === 'components'" (click)="setTab('components')"><i class="bi bi-ui-checks"></i>Components &amp; Scoring</button>
-      <button type="button" role="tab" [class.active]="tab === 'settings'" (click)="setTab('settings')"><i class="bi bi-calculator"></i>Points &amp; Verification</button>
-      <button type="button" role="tab" [class.active]="tab === 'groups'" (click)="setTab('groups')"><i class="bi bi-diagram-3"></i>Engineer Groups</button>
-      <button type="button" role="tab" [class.active]="tab === 'assignments'" (click)="setTab('assignments')"><i class="bi bi-person-check"></i>Data-entry Access</button>
-    </nav>
-
     <div *ngIf="error" class="error-message" role="alert">{{ error }}</div>
     <div *ngIf="message && !error" class="success-message" role="status">{{ message }}</div>
 
-    <!-- ===================== WEIGHTS ===================== -->
+    <!-- ===================== WEIGHTS =====================
+    This configuration is retained in the backend but is not exposed on this screen.
     <ng-container *ngIf="tab === 'weights'">
       <div class="form-container">
         <div class="form-header">
@@ -78,62 +71,41 @@
         </table>
       </div>
     </ng-container>
+    -->
 
     <!-- ===================== COMPONENTS ===================== -->
     <ng-container *ngIf="tab === 'components'">
-      <div class="form-container" *ngIf="componentForm as c">
+      <div class="form-container">
         <div class="form-header">
           <div>
-            <h2>Update Component – {{ c.name }}</h2>
-            <p class="form-sub">A component is scored only after its method is approved. Changing a method or target clears the approval unless you approve it again.</p>
+            <h2>{{ componentForm ? (componentForm.isNew ? 'Add KPI' : 'Update KPI') : 'Add KPI' }}</h2>
+            <p class="form-sub">Manage Power &amp; A/C KPI records</p>
           </div>
           <div class="form-actions">
-            <button type="button" class="btn-submit" (click)="saveComponent(c)" [disabled]="c.saving">Update</button>
-            <button type="button" class="btn-cancel" (click)="cancelComponentEdit()" [disabled]="c.saving">Cancel</button>
+            <button *ngIf="componentForm" type="button" class="btn-submit" (click)="saveComponent(componentForm)" [disabled]="componentForm.saving">
+              {{ componentForm.isNew ? 'Add KPI' : 'Update KPI' }}
+            </button>
+            <button *ngIf="componentForm" type="button" class="btn-cancel" (click)="cancelComponentEdit()" [disabled]="componentForm.saving">Cancel</button>
+            <button *ngIf="!componentForm" type="button" class="btn-submit" (click)="addComponent()" [disabled]="loading">Add KPI</button>
           </div>
         </div>
-        <div class="kpi-form">
+        <div class="kpi-form" *ngIf="componentForm as c" [class.edit-mode]="!c.isNew">
           <div class="form-row">
             <div class="form-group">
-              <label for="comp-year">Effective Year</label>
-              <select id="comp-year" [(ngModel)]="c.effectiveYear"><option *ngFor="let y of years" [ngValue]="y">{{ y }}</option></select>
+              <label for="comp-name">KPI</label>
+              <input id="comp-name" type="text" maxlength="150" [(ngModel)]="c.name" placeholder="KPI name">
             </div>
             <div class="form-group">
-              <label for="comp-month">Effective Month</label>
-              <select id="comp-month" [(ngModel)]="c.effectiveMonth"><option *ngFor="let m of months" [ngValue]="m.value">{{ m.label }}</option></select>
+              <label for="comp-source">Category</label>
+              <input id="comp-source" type="text" value="PowerAndAC" readonly>
             </div>
-            <div class="form-group wide-group">
-              <label for="comp-note">Approval Note (decision reference)</label>
-              <input id="comp-note" type="text" maxlength="500" [(ngModel)]="c.approvalNote" placeholder="e.g. meeting minute or email reference">
-            </div>
-          </div>
-          <div class="form-row">
             <div class="form-group">
-              <label for="comp-target">Target ({{ c.targetUnit }})</label>
+              <label for="comp-target">Target</label>
               <input id="comp-target" type="number" min="0" [(ngModel)]="c.targetValue" placeholder="Target">
             </div>
             <div class="form-group">
-              <label for="comp-method">Scoring Method</label>
-              <select id="comp-method" [(ngModel)]="c.scoringMethod">
-                <option *ngFor="let m of c.allowedScoringMethods" [value]="m">{{ m }}</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="comp-parameter">Deduction per Incident (%)</label>
-              <input id="comp-parameter" type="number" min="0" max="100" [(ngModel)]="c.scoringParameter"
-                [disabled]="c.scoringMethod !== 'DeductionPerIncident'" placeholder="Only for DeductionPerIncident">
-            </div>
-            <div class="form-group">
-              <label for="comp-order">Sort Order</label>
-              <input id="comp-order" type="number" min="0" [(ngModel)]="c.sortOrder">
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group check-group">
-              <label class="check-label"><input type="checkbox" [(ngModel)]="c.scoringApproved" [disabled]="c.scoringMethod === 'Pending'"> Scoring method approved</label>
-            </div>
-            <div class="form-group check-group">
-              <label class="check-label"><input type="checkbox" [(ngModel)]="c.isActive"> Active</label>
+              <label for="comp-weight">Weightage (%)</label>
+              <input id="comp-weight" type="number" min="0" max="100" step="0.0001" [(ngModel)]="c.weightPercent" placeholder="Weightage (%)">
             </div>
           </div>
           <span *ngIf="c.error" class="error">{{ c.error }}</span>
@@ -144,31 +116,26 @@
         <table class="kpi-table">
           <thead>
             <tr>
-              <th>Component</th>
-              <th>Data Source</th>
+              <th>KPI</th>
+              <th>Category</th>
               <th>Target</th>
-              <th>Scoring Method</th>
-              <th>Approved</th>
-              <th>Active</th>
-              <th>Approved By</th>
+              <th>Weightage (%)</th>
               <th class="actions-col">Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr *ngIf="!components.length">
-              <td colspan="8" class="no-data">No components configured</td>
+              <td colspan="5" class="no-data">No Power &amp; A/C KPI data available</td>
             </tr>
             <tr *ngFor="let c of components">
-              <td>{{ c.name }}<small class="d-block text-muted" *ngIf="c.hasEffectiveVersion">Version from {{ months[(c.versionEffectiveMonth ?? 1) - 1].label }} {{ c.versionEffectiveYear }}</small><small class="d-block text-danger" *ngIf="c.hasEffectiveVersion === false">No version effective this month</small></td>
-              <td>{{ c.dataSource }}</td>
+              <td>{{ c.name }} <small class="d-block text-muted">{{ c.code }}</small></td>
+              <td>PowerAndAC</td>
               <td>{{ c.targetValue }} {{ c.targetUnit }}</td>
-              <td>{{ c.scoringMethod }}<span *ngIf="c.scoringParameter !== null"> ({{ c.scoringParameter }})</span></td>
-              <td><span class="yes-no" [class.yes]="c.scoringApproved">{{ c.scoringApproved ? 'Yes' : 'No' }}</span></td>
-              <td><span class="yes-no" [class.yes]="c.isActive">{{ c.isActive ? 'Yes' : 'No' }}</span></td>
-              <td>{{ c.approvedBy || '—' }}</td>
+              <td>{{ c.currentWeightPercent ?? '—' }}</td>
               <td class="actions-col">
                 <div class="action-buttons">
                   <button type="button" class="btn-edit" (click)="editComponent(c)">Edit</button>
+                  <button type="button" class="btn-delete" (click)="deleteComponent(c)" [disabled]="!c.isActive || loading">Delete</button>
                 </div>
               </td>
             </tr>
@@ -177,43 +144,9 @@
       </div>
     </ng-container>
 
-    <ng-container *ngIf="tab === 'components'">
-      <div class="table-responsive">
-        <table class="kpi-table" id="version-history">
-          <thead>
-            <tr>
-              <th>Component</th>
-              <th>Effective From</th>
-              <th>Target</th>
-              <th>Scoring Method</th>
-              <th>Approved</th>
-              <th>Approved By / At</th>
-              <th>Approval Note</th>
-              <th>Created / Updated By</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngIf="!versions.length">
-              <td colspan="8" class="no-data">No scoring versions yet</td>
-            </tr>
-            <tr *ngFor="let v of versions">
-              <td>{{ v.componentCode }}</td>
-              <td>{{ months[v.effectiveMonth - 1].label }} {{ v.effectiveYear }}</td>
-              <td>{{ v.targetValue }}</td>
-              <td>{{ v.scoringMethod }}<span *ngIf="v.scoringParameter !== null"> ({{ v.scoringParameter }})</span></td>
-              <td><span class="yes-no" [class.yes]="v.scoringApproved">{{ v.scoringApproved ? 'Yes' : 'No' }}</span></td>
-              <td>{{ v.approvedBy || '—' }}<small class="d-block text-muted">{{ v.approvedAt | date:'medium' }}</small></td>
-              <td class="note-col">{{ v.approvalNote || '—' }}</td>
-              <td>{{ v.updatedBy || v.createdBy }}<small class="d-block text-muted">{{ (v.updatedAt || v.createdAt) | date:'medium' }}</small></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="form-note"><i class="bi bi-info-circle me-1"></i>Each period is scored with the version effective for its last month. Months that already have saved results cannot be changed; use a later effective month. Only Admins can approve, and only after the business confirms the rule.</p>
-    </ng-container>
-
-    <!-- ===================== SETTINGS ===================== -->
-    <ng-container *ngIf="tab === 'settings'">
+    <!-- ===================== SETTINGS =====================
+    Hidden from the Power & A/C configuration screen.
+    <ng-container *ngIf="false && tab === 'settings'">
       <div class="form-container">
         <div class="form-header">
           <div>
@@ -282,9 +215,10 @@
       </div>
       <p class="form-note"><i class="bi bi-info-circle me-1"></i>Points Applicable comes from the KPI definition on the KPI Management screen.</p>
     </ng-container>
+    -->
 
     <!-- ===================== GROUPS ===================== -->
-    <ng-container *ngIf="tab === 'groups'">
+    <ng-container *ngIf="false && tab === 'groups'">
       <div class="form-container" *ngIf="groupForm as g">
         <div class="form-header">
           <div>
@@ -366,7 +300,7 @@
     </ng-container>
 
     <!-- ===================== ASSIGNMENTS ===================== -->
-    <ng-container *ngIf="tab === 'assignments'">
+    <ng-container *ngIf="false && tab === 'assignments'">
       <div class="form-container">
         <div class="form-header">
           <div>
