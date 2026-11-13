@@ -53,6 +53,16 @@ export interface PowerAcSaveItem {
   areaAllocation: number | null;
 }
 
+// Monthly distribution (scheduled) and achievement (attended) counts for one engineer group and month.
+export interface PowerAcMonthlyCell {
+  month: number;
+  designation: string;
+  scheduled: number | null;
+  attended: number | null;
+  hasRow: boolean;
+  isVerified: boolean;
+}
+
 export interface PowerAcGroupResult {
   code: string;
   label: string;
@@ -96,6 +106,14 @@ export class PowerAcKpiService {
 
   verify(year: number, month: number): Observable<{ verified: number; skipped: number; message: string }> {
     return this.http.post<{ verified: number; skipped: number; message: string }>(`${this.base}/data/verify`, {}, { params: { year, month } });
+  }
+
+  getMonthly(year: number): Observable<PowerAcMonthlyCell[]> {
+    return this.http.get<PowerAcMonthlyCell[]>(`${this.base}/data/monthly`, { params: { year } });
+  }
+
+  saveMonthly(year: number, items: PowerAcMonthlyCell[]): Observable<{ saved: number; message: string }> {
+    return this.http.put<{ saved: number; message: string }>(`${this.base}/data/monthly`, { year, items });
   }
 
   toggleVerified(year: number, month: number, designation: string): Observable<{ designation: string; isVerified: boolean }> {

@@ -61,6 +61,24 @@ namespace backend.Controllers
             public List<SaveItemDto> Items { get; set; } = new();
         }
 
+        public class MonthlyCellDto
+        {
+            public int Month { get; set; }
+            public string Designation { get; set; } = string.Empty;
+            // Distribution: number scheduled. Achievement: number attended.
+            public int? Scheduled { get; set; }
+            public int? Attended { get; set; }
+            // True when the month has a row for this group (verification can only be set on such a row).
+            public bool HasRow { get; set; }
+            public bool IsVerified { get; set; }
+        }
+
+        public class SaveMonthlyDto
+        {
+            public int Year { get; set; }
+            public List<MonthlyCellDto> Items { get; set; } = new();
+        }
+
         [HttpGet("data")]
         public async Task<ActionResult<List<DataRowDto>>> GetData([FromQuery] int year, [FromQuery] int month)
         {
@@ -137,6 +155,79 @@ namespace backend.Controllers
             }
             await _db.SaveChangesAsync();
             return Ok(new { message = "Power & A/C values saved.", saved = dto.Items.Count });
+        }
+
+        // Monthly distribution (scheduled) and achievement (attended) counts per engineer group for a whole year.
+        [HttpGet("data/monthly")]
+        public async Task<ActionResult<List<MonthlyCellDto>>> GetMonthly([FromQuery] int year)
+        {
+            if (!await CanViewAsync()) return Forbid();
+            var yearText = year.ToString();
+            var rows = await _db.PowerAcPmData.AsNoTracking().Where(r => r.Year == yearText).ToListAsync();
+            var cells = new List<MonthlyCellDto>();
+            for (var month = 1; month <= 12; month++)
+            {
+                var monthName = PowerAcConfig.MonthNames[month - 1];
+                foreach (var g in PowerAcConfig.Groups)
+                {
+                    var r = rows.FirstOrDefault(x => x.Month == monthName && x.Designation.Trim() == g.Designation);
+                    cells.Add(new MonthlyCellDto
+                    {
+                        Month = month,
+                        Designation = g.Designation,
+                        Scheduled = r?.Scheduled,
+                        Attended = r?.Attended,
+                        HasRow = r is not null,
+                        IsVerified = r?.IsVerified ?? false
+                    });
+                }
+            }
+            return Ok(cells);
+        }
+
+        // Saves only the monthly distribution and achievement counts. Achievement %, allocation and verification are not changed.
+        [HttpPut("data/monthly")]
+        public async Task<IActionResult> SaveMonthly([FromBody] SaveMonthlyDto dto)
+        {
+            if (!await CanEditAsync()) return Forbid();
+            var known = PowerAcConfig.Groups.Select(g => g.Designation).ToHashSet();
+            foreach (var i in dto.Items)
+            {
+                if (i.Month < 1 || i.Month > 12) return BadRequest(new { message = "month must be between 1 and 12." });
+                if (!known.Contains(i.Designation.Trim())) return BadRequest(new { message = $"Unknown engineer group: {i.Designation}." });
+                if (i.Scheduled is < 0 || i.Attended is < 0) return BadRequest(new { message = "Distribution and achievement cannot be negative." });
+            }
+
+            var user = CurrentUser();
+            var now = DateTime.UtcNow;
+            var year = dto.Year.ToString();
+            var existing = await _db.PowerAcPmData.Where(r => r.Year == year).ToListAsync();
+
+            foreach (var item in dto.Items)
+            {
+                var monthName = PowerAcConfig.MonthNames[item.Month - 1];
+                var designation = item.Designation.Trim();
+                var row = existing.FirstOrDefault(r => r.Month == monthName && r.Designation.Trim() == designation);
+                if (row is null)
+                {
+                    row = new PowerAcPmData
+                    {
+                        Designation = designation,
+                        Year = year,
+                        Month = monthName,
+                        Cumulative_Sched = 0,
+                        Cumulative_Achieved = 0,
+                        EnteredBy = user,
+                    };
+                    _db.PowerAcPmData.Add(row);
+                    existing.Add(row);
+                }
+                row.Scheduled = item.Scheduled;
+                row.Attended = item.Attended;
+                row.UpdatedAt = now;
+            }
+            await _db.SaveChangesAsync();
+            return Ok(new { message = "Monthly distribution and achievement saved.", saved = dto.Items.Count });
         }
 
         [HttpPost("data/verify")]

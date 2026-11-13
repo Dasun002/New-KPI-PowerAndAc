@@ -11,9 +11,19 @@ import { AuthService } from '../../../../services/auth.service';
 import {
   PowerAcDataRow,
   PowerAcKpiService,
+  PowerAcMonthlyCell,
   PowerAcResults,
   PowerAcSaveItem
 } from '../../../../services/power-ac-kpi.service';
+
+type MonthlyField = 'scheduled' | 'attended';
+
+interface MonthlyEntry {
+  scheduled: number | null;
+  attended: number | null;
+  hasRow: boolean;
+  isVerified: boolean;
+}
 
 @Component({
   selector: 'app-power-ac-kpi',
@@ -41,6 +51,11 @@ export class PowerAcKpiComponent implements OnInit {
   // Edited values per engineer group (designation) and KPI code, and the groups with unsaved edits.
   private draft = new Map<string, Record<string, number | null>>();
   private dirty = new Set<string>();
+
+  // Monthly distribution and achievement counts for the whole selected year, keyed by "month|designation".
+  monthly = new Map<string, MonthlyEntry>();
+  private monthlyDirty = new Set<string>();
+  readonly monthNumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
   constructor(
     private readonly api: PowerAcKpiService,
@@ -75,14 +90,18 @@ export class PowerAcKpiComponent implements OnInit {
     this.message = '';
     forkJoin({
       rows: this.api.getData(this.year, this.month),
-      results: this.api.getResults(this.year, this.month)
+      results: this.api.getResults(this.year, this.month),
+      monthly: this.api.getMonthly(this.year)
     }).subscribe({
-      next: ({ rows, results }) => {
+      next: ({ rows, results, monthly }) => {
         this.rows = rows;
         this.results = results;
         this.draft.clear();
         this.dirty.clear();
         for (const r of rows) this.draft.set(r.designation, { ...r.achievements });
+        this.monthly.clear();
+        this.monthlyDirty.clear();
+        for (const c of monthly) this.monthly.set(this.monthlyKey(c.month, c.designation), { scheduled: c.scheduled, attended: c.attended, hasRow: c.hasRow, isVerified: c.isVerified });
         this.loading = false;
         this.cdr.detectChanges();
       },
@@ -153,6 +172,101 @@ export class PowerAcKpiComponent implements OnInit {
     this.api.verify(this.year, this.month).subscribe({
       next: r => { this.busy = false; this.message = r.message; this.load(); },
       error: err => { this.busy = false; this.fail(err, 'verify Power & A/C values'); }
+    });
+  }
+
+  private monthlyKey(month: number, designation: string): string {
+    return `${month}|${designation}`;
+  }
+
+  monthlyValue(month: number, designation: string, field: MonthlyField): number | null {
+    return this.monthly.get(this.monthlyKey(month, designation))?.[field] ?? null;
+  }
+
+  setMonthly(month: number, designation: string, field: MonthlyField, raw: string): void {
+    const key = this.monthlyKey(month, designation);
+    const entry = this.monthly.get(key) ?? { scheduled: null, attended: null, hasRow: false, isVerified: false };
+    const trimmed = raw.trim();
+    entry[field] = trimmed === '' ? null : Number(trimmed);
+    this.monthly.set(key, entry);
+    this.monthlyDirty.add(key);
+  }
+
+  monthlyHasRow(month: number, designation: string): boolean {
+    return this.monthly.get(this.monthlyKey(month, designation))?.hasRow ?? false;
+  }
+
+  monthlyVerified(month: number, designation: string): boolean {
+    return this.monthly.get(this.monthlyKey(month, designation))?.isVerified ?? false;
+  }
+
+  // Toggles verification of one engineer group for one month. Same rule as the Preventive Maintenance ✓/✗.
+  toggleMonthlyVerified(month: number, designation: string): void {
+    this.busy = true;
+    this.error = '';
+    this.api.toggleVerified(this.year, month, designation).subscribe({
+      next: r => {
+        this.busy = false;
+        const entry = this.monthly.get(this.monthlyKey(month, designation));
+        if (entry) entry.isVerified = r.isVerified;
+        // The overview shows the selected month, so keep its ✓/✗ in step.
+        if (month === this.month) {
+          const row = this.rows.find(x => x.designation === designation);
+          if (row) row.isVerified = r.isVerified;
+        }
+        this.cdr.detectChanges();
+      },
+      error: err => { this.busy = false; this.fail(err, 'change the verification'); }
+    });
+  }
+
+  get monthlyDirtyCount(): number {
+    return this.monthlyDirty.size;
+  }
+
+  // Year total for one engineer group (sum of the months that have a value).
+  monthlyTotal(designation: string, field: MonthlyField): number {
+    let total = 0;
+    for (const month of this.monthNumbers) total += this.monthlyValue(month, designation, field) ?? 0;
+    return total;
+  }
+
+  saveMonthly(): void {
+    const items: PowerAcMonthlyCell[] = [];
+    for (const key of this.monthlyDirty) {
+      const [monthText, designation] = key.split('|');
+      const entry = this.monthly.get(key);
+      if (!entry) continue;
+      for (const v of [entry.scheduled, entry.attended]) {
+        if (v !== null && (!Number.isInteger(v) || v < 0)) {
+          this.error = 'Distribution and achievement must be whole numbers, 0 or more.';
+          this.cdr.detectChanges();
+          return;
+        }
+      }
+      items.push({
+        month: Number(monthText),
+        designation,
+        scheduled: entry.scheduled,
+        attended: entry.attended,
+        hasRow: entry.hasRow,
+        isVerified: entry.isVerified
+      });
+    }
+    if (items.length === 0) {
+      this.message = 'Nothing to save.';
+      this.cdr.detectChanges();
+      return;
+    }
+    this.busy = true;
+    this.error = '';
+    this.api.saveMonthly(this.year, items).subscribe({
+      next: r => {
+        this.busy = false;
+        this.message = `${r.saved} monthly value(s) saved for ${this.year}.`;
+        this.load();
+      },
+      error: err => { this.busy = false; this.fail(err, 'save the monthly values'); }
     });
   }
 

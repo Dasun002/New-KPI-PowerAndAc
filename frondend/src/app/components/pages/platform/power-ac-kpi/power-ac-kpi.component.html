@@ -147,5 +147,68 @@
         </table>
       </div>
     </article>
+
+    <!-- 4. Monthly distribution vs achievement for the whole selected year -->
+    <article class="data-card achievement-card">
+      <header>
+        <div>
+          <h2>Monthly Distribution vs Achievement</h2>
+          <p>
+            {{ year }} · Distribution is the number scheduled, achievement is the number attended, per engineer group and month.
+            <button type="button" class="header-link" (click)="saveMonthly()" [disabled]="busy || !canEdit || monthlyDirtyCount === 0">Save monthly values ({{ monthlyDirtyCount }})</button>
+          </p>
+        </div>
+      </header>
+      <div class="table-wrapper">
+        <table class="data-table ipnw-style-table">
+          <thead>
+            <tr>
+              <th rowspan="2">Month</th>
+              <th *ngFor="let r of rows" colspan="2">{{ r.label }}</th>
+            </tr>
+            <tr>
+              <ng-container *ngFor="let r of rows">
+                <th>Distribution</th>
+                <th>Achievement</th>
+              </ng-container>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let m of monthNumbers">
+              <td>{{ months[m - 1] }}</td>
+              <ng-container *ngFor="let r of rows">
+                <td class="achievement-cell">
+                  <input type="number" min="0" step="1" class="form-control form-control-sm achievement-input"
+                         [disabled]="!canEdit"
+                         [value]="monthlyValue(m, r.designation, 'scheduled') ?? ''"
+                         (input)="setMonthly(m, r.designation, 'scheduled', $any($event.target).value)">
+                </td>
+                <td class="achievement-cell">
+                  <input type="number" min="0" step="1" class="form-control form-control-sm achievement-input"
+                         [disabled]="!canEdit"
+                         [value]="monthlyValue(m, r.designation, 'attended') ?? ''"
+                         (input)="setMonthly(m, r.designation, 'attended', $any($event.target).value)">
+                  <div *ngIf="monthlyHasRow(m, r.designation)" class="approval-icon"
+                       [ngClass]="monthlyVerified(m, r.designation) ? 'approved' : 'unapproved'"
+                       [class.is-disabled]="!canVerify || busy"
+                       [title]="!canVerify ? 'Only users who can verify Power & A/C can change this.' : (monthlyVerified(m, r.designation) ? 'Verified. Click to unverify.' : 'Not verified. Click to verify.')"
+                       (click)="canVerify && !busy && toggleMonthlyVerified(m, r.designation)">
+                    <i class="bi bi-check" *ngIf="monthlyVerified(m, r.designation)"></i>
+                    <i class="bi bi-x" *ngIf="!monthlyVerified(m, r.designation)"></i>
+                  </div>
+                </td>
+              </ng-container>
+            </tr>
+            <tr class="emphasis-row">
+              <td>Year total</td>
+              <ng-container *ngFor="let r of rows">
+                <td><strong>{{ monthlyTotal(r.designation, 'scheduled') }}</strong></td>
+                <td><strong>{{ monthlyTotal(r.designation, 'attended') }}</strong></td>
+              </ng-container>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
   </ng-container>
 </div>
