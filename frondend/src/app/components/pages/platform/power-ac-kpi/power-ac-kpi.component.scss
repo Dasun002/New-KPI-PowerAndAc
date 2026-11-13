@@ -323,3 +323,6 @@
 
 .history-row > td { background: #f8fbff !important; }
 .history-table { min-width: 0; font-size: .85rem; }
+
+.pm-approval.is-disabled { cursor: not-allowed; opacity: 0.6; }
+.pm-approval:not(.is-disabled) { cursor: pointer; }

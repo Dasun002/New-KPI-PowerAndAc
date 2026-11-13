@@ -1,6 +1,6 @@
+using backend.Services.PowerAc;
 using backend.Data;
 using backend.DTOs;
-using backend.Models.PowerAc;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend.Services
@@ -43,51 +43,8 @@ namespace backend.Services
                 .ThenBy(x => x.AreaCode)
                 .ToList();
 
-            var componentResults = await _db.PowerAcKpiResults
-                .AsNoTracking()
-                .Include(x => x.EngineerGroup!)
-                    .ThenInclude(x => x.RegionData)
-                .Include(x => x.ComponentScores)
-                    .ThenInclude(x => x.Component)
-                .Where(x => x.Year == year
-                    && x.PeriodType == PowerAcPeriodTypes.Month
-                    && x.PeriodNumber >= startMonth
-                    && x.PeriodNumber <= endMonth
-                    && x.Status == PowerAcResultStatus.Complete)
-                .ToListAsync();
 
-            var componentRows = componentResults
-                .SelectMany(result => result.ComponentScores
-                    .Where(score => score.Component is not null
-                        && score.Status == PowerAcResultStatus.Complete
-                        && score.Score.HasValue
-                        && result.EngineerGroup?.RegionData is not null)
-                    .Select(score => new
-                    {
-                        score.ComponentId,
-                        ComponentCode = score.Component!.Code,
-                        ComponentName = score.Component.Name,
-                        AreaCode = result.EngineerGroup!.RegionData!.LeaCode,
-                        AchievedKpi = score.Score!.Value * 100m,
-                        MaximumPoints = result.MaximumPoints!.Value * ((score.WeightPercent ?? 0m) / 100m),
-                        PointsAchieved = result.MaximumPoints!.Value * (score.WeightedScore ?? 0m)
-                    }))
-                .GroupBy(x => new { x.ComponentId, x.ComponentCode, x.ComponentName, Area = (x.AreaCode ?? string.Empty).Trim().ToLowerInvariant() })
-                .Select(g => new AnalyticsResultDto
-                {
-                    KpiDefinitionId = -g.Key.ComponentId,
-                    ComponentCode = g.Key.ComponentCode,
-                    KpiName = g.Key.ComponentName,
-                    AreaCode = g.First().AreaCode,
-                    Year = year,
-                    AchievedKpi = g.Average(x => x.AchievedKpi),
-                    MaximumPointsPerKpi = g.Sum(x => x.MaximumPoints),
-                    PointsAchieved = g.Sum(x => x.PointsAchieved),
-                    OverallKpiValuePercent = 0m
-                })
-                .ToList();
-
-            results.AddRange(componentRows);
+            results.AddRange(await PowerAcRowsAsync(year, startMonth, endMonth));
 
             var overallPercentByArea = results
                 .GroupBy(x => x.AreaCode, StringComparer.OrdinalIgnoreCase)
@@ -112,6 +69,74 @@ namespace backend.Services
             }
 
             return results;
+        }
+
+        // Power & A/C rows: one row per KPI and area, calculated from the single Power & A/C table.
+        // KpiDefinitionId is -(position of the KPI in configuration order + 1), as the analytics page expects.
+        private async Task<List<AnalyticsResultDto>> PowerAcRowsAsync(short year, byte startMonth, byte endMonth)
+        {
+            var components = (await _db.KpiDefinitions.AsNoTracking()
+                    .Where(k => k.Category == PowerAcConfig.Category)
+                    .OrderBy(k => k.Id)
+                    .ToListAsync())
+                .Select(PowerAcConfig.ToComponent)
+                .ToList();
+            if (components.Count == 0) return new List<AnalyticsResultDto>();
+
+            var pointsApplicable = await _db.KpiDefinitions.AsNoTracking()
+                .Where(k => k.Id == PowerAcConfig.PointsKpiDefinitionId)
+                .Select(k => (decimal?)k.PointsApplicable)
+                .FirstOrDefaultAsync();
+            var regions = await _db.RegionData.AsNoTracking().ToListAsync();
+            var y = year.ToString();
+            var rows = new List<AnalyticsResultDto>();
+
+            for (var month = startMonth; month <= endMonth; month++)
+            {
+                var monthName = PowerAcConfig.MonthNames[month - 1];
+                var data = await _db.PowerAcPmData.AsNoTracking()
+                    .Where(r => r.Year == y && r.Month == monthName)
+                    .ToListAsync();
+                foreach (var group in PowerAcCalculator.Calculate(data, components, pointsApplicable))
+                {
+                    var area = regions.FirstOrDefault(r => r.NetworkEngineer == group.Code)?.LeaCode ?? string.Empty;
+                    if (area.Length == 0) continue;
+                    for (var i = 0; i < components.Count; i++)
+                    {
+                        var component = components[i];
+                        var achievement = group.Achievement.TryGetValue(component.Code, out var a) ? a : null;
+                        if (achievement is null || group.MaximumPoints is null) continue;
+                        var maxPoints = group.MaximumPoints.Value * component.WeightPercent / 100m;
+                        rows.Add(new AnalyticsResultDto
+                        {
+                            KpiDefinitionId = -(i + 1),
+                            ComponentCode = component.Code,
+                            KpiName = component.Name,
+                            AreaCode = area,
+                            Year = year,
+                            AchievedKpi = achievement.Value,
+                            MaximumPointsPerKpi = Math.Round(maxPoints, 4),
+                            PointsAchieved = Math.Round(maxPoints * achievement.Value / 100m, 4),
+                            OverallKpiValuePercent = 0m
+                        });
+                    }
+                }
+            }
+            return rows
+                .GroupBy(r => new { r.KpiDefinitionId, Area = r.AreaCode.Trim().ToLowerInvariant() })
+                .Select(g => new AnalyticsResultDto
+                {
+                    KpiDefinitionId = g.Key.KpiDefinitionId,
+                    ComponentCode = g.First().ComponentCode,
+                    KpiName = g.First().KpiName,
+                    AreaCode = g.First().AreaCode,
+                    Year = year,
+                    AchievedKpi = g.Average(x => x.AchievedKpi),
+                    MaximumPointsPerKpi = g.Sum(x => x.MaximumPointsPerKpi),
+                    PointsAchieved = g.Sum(x => x.PointsAchieved),
+                    OverallKpiValuePercent = 0m
+                })
+                .ToList();
         }
 
         private static bool IsLegacyPowerAcRow(string? name)

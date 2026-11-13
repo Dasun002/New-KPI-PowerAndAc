@@ -29,25 +29,16 @@ namespace backend.Controllers
         private readonly AppDbContext _db;
         private readonly backend.Services.RoutineMaintenanceService _routineService;
         private readonly backend.Services.TowerMaintenanceService _towerService;
-        private readonly backend.Services.PowerAndACService _powerService;
-        // Opt-in switch: when true, the KPI definition named by PowerAc:OverallKpiDefinitionId is filled from the
-        // saved four-component Power & AC snapshot instead of the legacy scheduled/attended branch. Default false.
-        private readonly bool _useComponentPowerAcKpi;
-        private readonly int? _powerAcKpiDefinitionId;
 
         public OverallKpiResultsController(
             AppDbContext db,
             backend.Services.RoutineMaintenanceService routineService,
             backend.Services.TowerMaintenanceService towerService,
-            backend.Services.PowerAndACService powerService,
             IConfiguration configuration)
         {
             _db = db;
             _routineService = routineService;
             _towerService = towerService;
-            _powerService = powerService;
-            _useComponentPowerAcKpi = configuration.GetValue<bool>("PowerAc:UseComponentKpiInOverall");
-            _powerAcKpiDefinitionId = configuration.GetValue<int?>("PowerAc:OverallKpiDefinitionId");
         }
 
         // =========================================================
@@ -136,8 +127,10 @@ namespace backend.Controllers
             // Fallback to latest definitions if none exist for selected period
             // =========================================================
             // KpiDefinition no longer has month/year columns — load all definitions
+            // Power & A/C KPIs (Category PowerAndAC) are calculated on the Power & A/C page, not here.
             var kpis = await _db.KpiDefinitions
                 .AsNoTracking()
+                .Where(x => x.Category == null || x.Category != backend.Services.PowerAc.PowerAcConfig.Category)
                 .OrderBy(x => x.Id)
                 .ToListAsync();
 
@@ -255,14 +248,10 @@ namespace backend.Controllers
             var towerResults = await _towerService.GetTowerPercentagesAsync(
                     year, month, designationToArea);
 
-            var powerResults = await _powerService.GetPowerAndACPercentagesAsync(
-                    (short)year, month, designationToArea);
-
             Console.WriteLine($"IPNW results count = {ipnwResults.Count}");
             Console.WriteLine($"SLBN results count = {slbnResults.Count}");
             Console.WriteLine($"MSAN results count = {msanResults.Count}");
             Console.WriteLine($"Tower results count = {towerResults.Count}");
-            Console.WriteLine($"Power & AC results count = {powerResults.Count}");
 
             // =========================================================
             // STEP 4: VALIDATE DATA AVAILABILITY
@@ -480,82 +469,6 @@ namespace backend.Controllers
                             AchievedKpi = achieved,
                             MaximumPointsPerKpi = maxPoints,
                             PointsAchieved = CalculatePointsAchieved(maxPoints, achieved, 95m),
-                            Month = month,
-                            Year = year,
-                            CalculatedAt = nowUtc
-                        });
-                    }
-                    continue;
-                }
-
-                if (_useComponentPowerAcKpi && _powerAcKpiDefinitionId == kpi.Id)
-                {
-                    // Four-component Power & AC KPI, selected by KPI id (not by name).
-                    // Uses the SAVED monthly snapshot (Power & A/C KPI -> Calculate & Save), so the overall
-                    // scorecard shows exactly the reviewed result. Only Complete groups are written; Incomplete or
-                    // Pending groups and months without a saved snapshot get no row (never a silent zero).
-                    var savedPowerAc = await _db.PowerAcKpiResults.AsNoTracking()
-                        .Include(r => r.EngineerGroup)
-                        .Where(r => r.Year == year
-                            && r.PeriodType == backend.Models.PowerAc.PowerAcPeriodTypes.Month
-                            && r.PeriodNumber == month)
-                        .ToListAsync();
-                    if (savedPowerAc.Count == 0)
-                        Console.WriteLine($"Power & AC: no saved snapshot for {year}-{month:00}; KPI {kpi.Id} left without results.");
-
-                    foreach (var saved in savedPowerAc.Where(r =>
-                        r.Status == backend.Models.PowerAc.PowerAcResultStatus.Complete
-                        && r.CompositeAchievement.HasValue && r.MaximumPoints.HasValue && r.PointsAchieved.HasValue))
-                    {
-                        var region = dbRegions.FirstOrDefault(r => r.Id == saved.EngineerGroup!.RegionDataId);
-                        var area = CanonicalizeArea(region?.LeaCode, officialAreas);
-                        if (area == string.Empty) continue;
-
-                        results.Add(new OverallKpiResult
-                        {
-                            KpiCode = $"KPI-{kpi.Id}",
-                            KpiDefinitionId = kpi.Id,
-                            KpiName = kpi.KeyPerformanceIndicators,
-                            Platform = kpi.Perspectives,
-                            AreaCode = area,
-                            TargetValue = Math.Round(saved.CompositeTarget * 100m, 4),
-                            AchievedKpi = Math.Round(saved.CompositeAchievement!.Value * 100m, 4),
-                            MaximumPointsPerKpi = saved.MaximumPoints!.Value,
-                            PointsAchieved = saved.PointsAchieved!.Value,
-                            Month = month,
-                            Year = year,
-                            CalculatedAt = nowUtc
-                        });
-                    }
-                    continue;
-                }
-
-                if (IsPowerAndAcKpi(kpi.KeyPerformanceIndicators))
-                {
-                    Console.WriteLine("ENTERED POWER & AC BLOCK");
-                    var totalPowerNodes = powerResults.Sum(x => x.NodesCount);
-                    foreach (var record in powerResults.Where(x => x.NodesCount > 0m))
-                    {
-                        var area = record.NormalizedAreaCode;
-                        var achieved = record.Percentage;
-                        var nodes = record.NodesCount;
-
-                        var maxPoints = totalPowerNodes > 0m
-                            ? Math.Round((nodes / totalPowerNodes) * (decimal)kpi.PointsApplicable, 4)
-                            : (powerResults.Count > 0 ? Math.Round((decimal)kpi.PointsApplicable / powerResults.Count, 4) : 0m);
-
-                        Console.WriteLine($"INSERTING {kpi.KeyPerformanceIndicators} Area={area} Achieved={achieved} Nodes={nodes} MaxPoints={maxPoints}");
-                        results.Add(new OverallKpiResult
-                        {
-                            KpiCode = $"KPI-{kpi.Id}",
-                            KpiDefinitionId = kpi.Id,
-                            KpiName = kpi.KeyPerformanceIndicators,
-                            Platform = kpi.Perspectives,
-                            AreaCode = area,
-                            TargetValue = 90m,
-                            AchievedKpi = achieved,
-                            MaximumPointsPerKpi = maxPoints,
-                            PointsAchieved = CalculatePointsAchieved(maxPoints, achieved, 90m),
                             Month = month,
                             Year = year,
                             CalculatedAt = nowUtc
@@ -1088,16 +1001,6 @@ namespace backend.Controllers
         private static bool IsTelemetryKpi(string? kpiName)
             => (kpiName ?? string.Empty).Contains("Telemetry", StringComparison.OrdinalIgnoreCase);
 
-        private static bool IsPowerAndAcKpi(string? kpiName)
-        {
-            var normalized = NormalizeArea(kpiName);
-            return normalized.Contains("power")
-                && (normalized.Contains("air")
-                    || normalized.Contains("ac")
-                    || normalized.Contains("oc")
-                    || normalized.Contains("airconditioning"));
-        }
-
         private static bool IsTowerMaintenanceKpi(KpiDefinition kpi)
         {
             var normalizedName = NormalizeText(kpi.KeyPerformanceIndicators);
@@ -1281,7 +1184,6 @@ namespace backend.Controllers
                 .Concat(_db.SlbnMtcData.Select(x => x.Designation))
                 .Concat(_db.TowerMtcData.Select(x => x.Designation))
                 .Concat(_db.Telemetry.Select(x => x.Designation))
-                .Concat(_db.PowerAndAC.Select(x => x.Designation))
                 .Where(x => x != null)
                 .Distinct()
                 .ToList();

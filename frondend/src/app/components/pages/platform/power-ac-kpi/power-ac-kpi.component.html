@@ -3,181 +3,149 @@
     <div class="header-info">
       <h1>Power &amp; A/C KPI</h1>
       <p class="page-subtitle">Preventive Maintenance, Critical Safety, Corrective Action and Power System Availability across network areas.</p>
-      <div class="mt-3">
-        <small class="text-muted">
-          <i class="bi bi-info-circle me-1"></i>
-          {{ components.length }} KPIs loaded ·
-          <span [class.text-success]="canCalculate" [class.text-warning]="!canCalculate">
-            <i class="bi" [ngClass]="canCalculate ? 'bi-check-circle' : 'bi-exclamation-circle'"></i>
-            {{ canCalculate ? 'Edit mode enabled' : 'View only mode' }}
-          </span>
-        </small>
-      </div>
     </div>
-
-    <form *ngIf="!loading && !error" (submit)="$event.preventDefault()" class="filters-form pac-filters">
+    <form (submit)="$event.preventDefault()" class="filters-form pac-filters">
       <div class="pac-filter-column">
         <label for="pac-month" class="form-label">Month:</label>
         <select id="pac-month" class="form-select" [(ngModel)]="month" (change)="onPeriodChange()" name="month">
-          <option *ngFor="let m of months" [ngValue]="m.value">{{ m.label }}</option>
+          <option *ngFor="let m of months; let i = index" [ngValue]="i + 1">{{ m }}</option>
         </select>
       </div>
       <div class="pac-filter-column">
         <label for="pac-year" class="form-label">Year:</label>
         <select id="pac-year" class="form-select" [(ngModel)]="year" (change)="onPeriodChange()" name="year">
-          <option *ngFor="let y of years" [ngValue]="y">{{ y }}</option>
-        </select>
-      </div>
-      <div class="pac-filter-column">
-        <label for="pac-period-type" class="form-label">Period:</label>
-        <select id="pac-period-type" class="form-select" [(ngModel)]="periodType" (change)="onPeriodChange()" name="periodType">
-          <option value="Month">Month</option>
-          <option value="Quarter">Quarter</option>
-        </select>
-      </div>
-      <div class="pac-filter-column" *ngIf="periodType === 'Quarter'">
-        <label for="pac-quarter" class="form-label">Quarter:</label>
-        <select id="pac-quarter" class="form-select" [(ngModel)]="quarter" (change)="onPeriodChange()" name="quarter">
-          <option *ngFor="let q of quarters" [ngValue]="q.value">{{ q.label }}</option>
+          <option *ngFor="let y of yearOptions" [ngValue]="y">{{ y }}</option>
         </select>
       </div>
     </form>
+  </div>
 
-    <div class="header-actions">
-      <button type="button" class="export-btn" id="pac-calculate" *ngIf="canCalculate && tab === 'results'"
-        (click)="calculateAndSave()" [disabled]="loading">
-        Calculate &amp; Save
-      </button>
+  <div class="state info" *ngIf="loading">Loading {{ months[month - 1] }} {{ year }}…</div>
+  <div class="state error" *ngIf="error">{{ error }}</div>
+  <div class="state success" *ngIf="message && !error">{{ message }}</div>
+
+  <ng-container *ngIf="results && !loading">
+    <div class="state warning global-issues" *ngIf="results.groups.length && results.groups[0].issues.length">
+      <strong>Points are not calculated yet for every group:</strong>
+      <ul>
+        <li *ngFor="let issue of results.groups[0].issues">{{ issue }}</li>
+      </ul>
     </div>
-  </div>
 
-  <nav class="section-switcher pac-tabs" role="tablist">
-    <button type="button" role="tab" [class.active]="tab === 'results'" [attr.aria-selected]="tab === 'results'" (click)="setTab('results')"><i class="bi bi-clipboard-data-fill"></i>Results</button>
-    <button type="button" role="tab" [class.active]="tab === 'allocations'" [attr.aria-selected]="tab === 'allocations'" (click)="setTab('allocations')"><i class="bi bi-diagram-3-fill"></i>Area Allocation</button>
-  </nav>
-
-  <div class="selected-filters mb-4">
-    <div class="filter-chip"><span class="filter-label">Period:</span><span class="filter-value">{{ periodLabel }}</span></div>
-    <div class="filter-chip"><span class="filter-label">View:</span><span class="filter-value">{{ tab | titlecase }}</span></div>
-  </div>
-
-  <section class="table-section">
-    <div class="state" *ngIf="loading">Loading Power &amp; A/C KPI data...</div>
-    <div class="state error" *ngIf="error">{{ error }}</div>
-    <div class="state success" *ngIf="message && !error">{{ message }}</div>
-
-    <!-- ===================== RESULTS ===================== -->
-    <ng-container *ngIf="tab === 'results' && results">
-      <div class="state warning global-issues" *ngIf="results.globalIssues.length">
-        <strong>Points are not calculated yet:</strong>
-        <ul><li *ngFor="let issue of results.globalIssues">{{ issue }}</li></ul>
+    <!-- 1. Overview (calculated) -->
+    <article class="data-card">
+      <header>
+        <div>
+          <h2>Power &amp; A/C KPI Overview</h2>
+          <p>{{ months[month - 1] }} {{ year }} · Complete {{ results.completeCount }} · Incomplete {{ results.incompleteCount }}
+            · Points {{ results.totalPointsAchieved ?? '—' }} / {{ results.totalMaximumPoints ?? '—' }}</p>
+        </div>
+      </header>
+      <div class="table-wrapper">
+        <table class="data-table overview-table ipnw-style-table">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>KPI</th>
+              <th>Target</th>
+              <th>Weightage</th>
+              <th *ngFor="let g of results.groups">{{ g.label }}<br><small>(Achievement %)</small></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let c of results.components; let i = index">
+              <td>{{ i + 1 }}</td>
+              <td class="kpi-name">{{ c.name }}</td>
+              <td>{{ c.targetPercent }}%</td>
+              <td>{{ c.weightPercent }}%</td>
+              <td *ngFor="let g of results.groups" class="achievement-cell">
+                {{ achievementText(g.achievement[c.code]) }}
+                <div *ngIf="c.code === 'PM'" class="approval-icon pm-approval"
+                     [ngClass]="isVerified(g.designation) ? 'approved' : 'unapproved'"
+                     [class.is-disabled]="!canVerify || busy"
+                     [title]="!canVerify ? 'Only users who can verify Power & A/C can change this.' : (isVerified(g.designation) ? 'Verified. Click to unverify.' : 'Not verified. Click to verify.')"
+                     (click)="canVerify && !busy && toggleVerified(g.designation)">
+                  <i class="bi bi-check" *ngIf="isVerified(g.designation)"></i>
+                  <i class="bi bi-x" *ngIf="!isVerified(g.designation)"></i>
+                </div>
+              </td>
+            </tr>
+            <tr class="emphasis-row">
+              <td></td>
+              <td class="kpi-name">Power &amp; A/C KPI (weighted)</td>
+              <td>100%</td>
+              <td>100%</td>
+              <td *ngFor="let g of results.groups" class="achievement-cell">{{ percent(g.composite) }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
+    </article>
 
-      <article class="data-card">
-        <header>
-          <div>
-            <h2><i class="bi bi-lightning-charge-fill me-2"></i>Power &amp; A/C KPI Overview</h2>
-            <p>
-              {{ periodLabel }} ·
-              {{ results.isPreview ? 'Live preview (not saved)' : 'Saved ' + (results.calculatedAt | date:'medium') + (results.calculatedBy ? ' by ' + results.calculatedBy : '') }}
-              · Complete {{ results.completeCount }} · Incomplete {{ results.incompleteCount }} · Pending {{ results.pendingCount }}
-              · Points {{ number(results.totalPointsAchieved) }} / {{ number(results.totalMaximumPoints) }}
-              <button type="button" class="header-link" (click)="refreshPreview()" [disabled]="loading">Refresh preview</button>
-            </p>
-          </div>
-        </header>
-
-        <div class="table-wrapper">
-          <table class="data-table overview-table ipnw-style-table">
-            <thead>
-              <tr>
-                <th rowspan="2" class="align-middle">No</th>
-                <th rowspan="2" class="align-middle">KPI</th>
-                <th rowspan="2" class="align-middle">Category</th>
-                <th rowspan="2" class="align-middle">Target</th>
-                <th rowspan="2" class="align-middle">Weightage</th>
-                <th *ngFor="let g of results.groups" rowspan="2" class="align-middle">
-                  {{ groupHeaderById(g.engineerGroupId) }}<br>
-                  <small>(Achievement %)</small>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <ng-container *ngFor="let row of overviewRows; let i = index">
-                <tr [class.emphasis-row]="row.emphasis" [class.summary-row]="i >= components.length">
-                <td>{{ i < components.length ? i + 1 : '' }}</td>
-                <td class="kpi-name">{{ row.label }}</td>
-                <td>{{ overviewCategory(row) }}</td>
-                <td>{{ row.target }}</td>
-                <td>{{ row.weight }}</td>
-                <td *ngFor="let g of results.groups" class="achievement-cell" [title]="overviewTitle(row, g)">
-                  <span *ngIf="row.key === 'STATUS'; else valueText" class="status-pill" [ngClass]="statusClass(g.status)">{{ g.status }}</span>
-                  <ng-template #valueText>
-                    <strong *ngIf="row.emphasis; else plainValue">{{ overviewValue(row, g) }}</strong>
-                    <ng-template #plainValue><span [class.muted-value]="overviewApproved(row, g) === false">{{ overviewValue(row, g) }}</span></ng-template>
-                  </ng-template>
-                  <div class="approval-icon" *ngIf="overviewApproved(row, g) !== null"
-                       [ngClass]="overviewApproved(row, g) ? 'approved' : 'unapproved'">
-                    <i class="bi bi-check" *ngIf="overviewApproved(row, g)"></i>
-                    <i class="bi bi-x" *ngIf="!overviewApproved(row, g)"></i>
-                  </div>
-                </td>
-                </tr>
-              </ng-container>
-              <tr *ngIf="!results.groups.length">
-                <td colspan="5">No engineer groups are configured.</td>
-              </tr>
-            </tbody>
-          </table>
+    <!-- 2. Middle table: Critical Safety, Corrective Action, Availability -->
+    <article class="data-card achievement-card">
+      <header>
+        <div>
+          <h2>Achievement % Input: Safety, Corrective and Availability</h2>
+          <p>
+            {{ months[month - 1] }} {{ year }} · Values entered here feed the overview above.
+            <button type="button" class="header-link" (click)="save()" [disabled]="busy || !canEdit || unsavedCount === 0">Save values ({{ unsavedCount }})</button>
+            <button type="button" class="header-link" *ngIf="canVerify" (click)="verify()" [disabled]="busy">Verify values entered by others</button>
+          </p>
         </div>
-      </article>
+      </header>
+      <div class="table-wrapper">
+        <table class="data-table ipnw-style-table">
+          <thead>
+            <tr>
+              <th>KPI</th>
+              <th *ngFor="let r of rows">{{ r.label }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let c of otherComponents">
+              <td class="kpi-name">{{ c.name }}</td>
+              <td *ngFor="let r of rows" class="achievement-cell">
+                <input type="number" min="0" max="100" step="0.0001" class="form-control form-control-sm achievement-input"
+                       [disabled]="!canEdit"
+                       [value]="value(r.designation, c.code) ?? ''"
+                       (input)="setValue(r.designation, c.code, $any($event.target).value)">
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
 
-    </ng-container>
-
-    <!-- ===================== ALLOCATIONS ===================== -->
-    <ng-container *ngIf="tab === 'allocations'">
-      <article class="data-card">
-        <header>
-          <div>
-            <h2><i class="bi bi-diagram-3-fill me-2"></i>Engineer Group Area Allocation</h2>
-            <p>Effective from {{ months[month - 1].label }} {{ year }} · Saved total {{ number(allocationTotal, 4) }} · With changes {{ number(draftAllocationTotal, 4) }} · Missing {{ allocationMissing }} · {{ allocationComplete ? 'Complete' : 'Incomplete' }}
-              <button *ngIf="canEnterData" type="button" class="header-link" id="pac-save-allocations"
-                (click)="saveAllocations()" [disabled]="loading || allocationEdits.length === 0">Save {{ allocationEdits.length }} change(s)</button>
-            </p>
-          </div>
-        </header>
-        <div class="table-wrapper">
-          <table class="data-table">
-            <thead>
-              <tr><th>Cell</th><th>Workbook Label</th><th>NW EE</th><th>RTOM Area</th><th>Mapping</th><th>Allocation</th><th>Remarks</th><th>Effective From</th><th>Last Change</th></tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let row of allocationRows">
-                <td>{{ row.workbookAllocationCell }}</td>
-                <td>{{ row.workbookLabel }}</td>
-                <td>{{ groupHeaderById(row.engineerGroupId) }}</td>
-                <td>{{ row.leaCode || '—' }}</td>
-                <td><span class="status-pill" [ngClass]="row.mappingVerified ? 'status-complete' : 'status-incomplete'">{{ row.mappingVerified ? 'Verified' : 'Unverified' }}</span></td>
-                <td class="input-cell">
-                  <input *ngIf="row.canEdit; else readOnlyAllocation" type="number" min="0" step="0.0001" class="form-control form-control-sm"
-                    [attr.aria-label]="'Allocation for ' + row.engineerGroupCode"
-                    [(ngModel)]="row.input" (ngModelChange)="validateAllocation(row)" [class.is-invalid]="row.error">
-                  <ng-template #readOnlyAllocation>{{ row.allocationValue ?? 'Not entered' }}</ng-template>
-                  <div *ngIf="row.error" class="invalid-feedback d-block">{{ row.error }}</div>
-                </td>
-                <td class="input-cell">
-                  <input *ngIf="row.canEdit; else readOnlyRemarks" type="text" maxlength="500" class="form-control form-control-sm" [(ngModel)]="row.remarksInput">
-                  <ng-template #readOnlyRemarks>{{ row.remarks }}</ng-template>
-                </td>
-                <td>{{ row.effectiveYear ? (months[(row.effectiveMonth ?? 1) - 1].label + ' ' + row.effectiveYear) : '—' }}</td>
-                <td>{{ row.updatedBy || '—' }}</td>
-              </tr>
-              <tr *ngIf="!allocationRows.length"><td colspan="9">No engineer groups are configured.</td></tr>
-            </tbody>
-          </table>
+    <!-- 3. Bottom table: Preventive Maintenance -->
+    <article class="data-card achievement-card">
+      <header>
+        <div>
+          <h2>Achievement % Input: Preventive Maintenance</h2>
+          <p>{{ months[month - 1] }} {{ year }} · The Preventive Maintenance Achievement % in the overview above comes from these values.</p>
         </div>
-      </article>
-    </ng-container>
-
-  </section>
+      </header>
+      <div class="table-wrapper">
+        <table class="data-table ipnw-style-table">
+          <thead>
+            <tr>
+              <th>KPI</th>
+              <th *ngFor="let r of rows">{{ r.label }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngIf="pmComponent">
+              <td class="kpi-name">{{ pmComponent.name }}</td>
+              <td *ngFor="let r of rows" class="achievement-cell">
+                <input type="number" min="0" max="100" step="0.0001" class="form-control form-control-sm achievement-input"
+                       [disabled]="!canEdit"
+                       [value]="value(r.designation, pmComponent?.code ?? 'PM') ?? ''"
+                       (input)="setValue(r.designation, pmComponent?.code ?? 'PM', $any($event.target).value)">
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+  </ng-container>
 </div>

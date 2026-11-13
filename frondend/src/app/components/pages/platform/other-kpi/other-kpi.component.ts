@@ -3,7 +3,6 @@ import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RegionService, Region } from '../../../../services/region.service';
 import { TelemetryService } from '../../../../services/telemetry.service';
-import { PowerAndACService, PowerAndACRecord } from '../../../../services/power-and-ac.service';
 import { AuthService } from '../../../../services/auth.service';
 import { FilterUtils } from '../../../../utils/filter.utils';
 import { formatEngineerDisplay } from '../../../../utils/region-display.utils';
@@ -57,19 +56,12 @@ export class OtherKpiComponent implements OnInit {
   regionOptions: string[] = [];
   isEditingAllowed: boolean = false;
 
-  // ── Power & AC filter state ──
-  pacYear: number = new Date().getFullYear();
-  pacLoading = false;
-  pacError: string | null = null;
-  pacRows: PowerAndACRecord[] = [];
-
-  get monthOptions() { return FilterUtils.getMonthOptions(this.pacYear); }
+  get monthOptions() { return FilterUtils.getMonthOptions(new Date().getFullYear()); }
   yearOptions: number[] = FilterUtils.generatePlatformYearOptions();
 
   constructor(
     private regionService: RegionService,
     private telService: TelemetryService,
-    private pacService: PowerAndACService,
     private authService: AuthService,
     private cdr: ChangeDetectorRef
   ) {}
@@ -77,7 +69,6 @@ export class OtherKpiComponent implements OnInit {
   ngOnInit(): void {
     this.isEditingAllowed = this.authService.canEditPage('Other KPI');
     this.loadRegions();
-    this.loadPowerAndAC();
   }
 
   // ── Computed ──
@@ -215,63 +206,6 @@ export class OtherKpiComponent implements OnInit {
         this.cdr.detectChanges();
       }
     });
-  }
-
-  // ── Power & AC ──
-
-  onPacYearChange(): void {
-    this.loadPowerAndAC();
-  }
-
-  loadPowerAndAC(): void {
-    this.pacLoading = true;
-    this.pacError = null;
-    this.pacService.getByYear(this.pacYear).subscribe({
-      next: rows => {
-        this.pacRows = rows ?? [];
-        this.pacLoading = false;
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.pacError = 'Failed to load Power & AC data.';
-        this.pacLoading = false;
-        this.cdr.detectChanges();
-      }
-    });
-  }
-
-  get pacDesignations(): string[] {
-    if (!this.pacRows) return [];
-    return Array.from(new Set(this.pacRows.map(r => r.designation))).sort();
-  }
-
-  getPacRecord(designation: string, month: number): PowerAndACRecord | undefined {
-    return this.pacRows.find(r => r.designation === designation && r.month === month);
-  }
-
-  getPacValue(designation: string, month: number, type: 'sched' | 'achieved'): string {
-    const record = this.getPacRecord(designation, month);
-    if (!record) return '—';
-    return type === 'sched' ? String(record.cumulative_Sched) : String(record.cumulative_Achieved);
-  }
-
-  togglePacVerified(designation: string, month: number): void {
-    if (!this.isEditingAllowed) {
-      return;
-    }
-
-    const record = this.getPacRecord(designation, month);
-    if (record && record.id) {
-      this.pacService.toggleVerified(record.id).subscribe({
-        next: (res) => {
-          record.isVerified = res.isVerified;
-          this.cdr.detectChanges();
-        },
-        error: (err) => {
-          console.error('Failed to toggle verified state for PowerAndAC', err);
-        }
-      });
-    }
   }
 
   getMonthLabel(month: number): string {

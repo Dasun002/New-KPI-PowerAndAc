@@ -492,18 +492,30 @@ return {
           return;
         }
 
-        this.powerAcKpiService.getComponents(year, month).subscribe({
-          next: components => {
-            const expanded = list.flatMap(row => row.id !== powerAcDefinition.id
+        this.powerAcKpiService.getResults(year, month).subscribe({
+          next: results => {
+            const components = results.components.map((c, i) => ({
+              id: i + 1,
+              isActive: true,
+              name: c.name,
+              targetValue: c.targetPercent,
+              targetUnit: '%',
+              currentWeightPercent: c.weightPercent
+            }));
+            // Power & A/C KPI rows (Category PowerAndAC) are shown only through the components below.
+            // Each component's points are its weight share of the KPI's points: points x weight / 100.
+            const expanded = list
+              .filter(row => (row.category ?? '') !== 'PowerAndAC')
+              .flatMap(row => row.id !== powerAcDefinition.id
               ? [row]
-              : components.filter(component => component.isActive).map(component => ({
+              : components.map(component => ({
                   ...row,
                   id: -component.id,
                   category: 'Power & AC',
                   keyPerformanceIndicators: component.name,
                   descriptionOfKPI: `${component.targetValue} ${component.targetUnit}`,
                   weightage: component.currentWeightPercent ?? 0,
-                  pointsApplicable: Math.round((row.pointsApplicable * (component.currentWeightPercent ?? 0)) / (powerAcDefinition.weightage || 100))
+                  pointsApplicable: Math.round((row.pointsApplicable * (component.currentWeightPercent ?? 0)) / 100)
                 })));
             applyDefinitions(expanded);
           },

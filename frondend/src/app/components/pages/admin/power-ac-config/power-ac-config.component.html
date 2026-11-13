@@ -1,360 +1,69 @@
-<!-- Power & A/C KPI configuration, laid out like the other KPI admin screens (form card + kpi-table). -->
-<div class="page-container">
-  <div class="page-header">
-    <h1>Power &amp; A/C KPI Configuration</h1>
-  </div>
+<!-- File: power-ac-config.component.html -->
+<div class="pac-config">
+  <h1 class="pac-config-title">Power &amp; A/C KPI Configuration</h1>
 
-  <div class="dashboard-container">
-    <div *ngIf="error" class="error-message" role="alert">{{ error }}</div>
-    <div *ngIf="message && !error" class="success-message" role="status">{{ message }}</div>
+  <div class="state success" *ngIf="message && !error">{{ message }}</div>
+  <div class="state error" *ngIf="error">{{ error }}</div>
 
-    <!-- ===================== WEIGHTS =====================
-    This configuration is retained in the backend but is not exposed on this screen.
-    <ng-container *ngIf="tab === 'weights'">
-      <div class="form-container">
-        <div class="form-header">
-          <div>
-            <h2>Component Weights</h2>
-            <p class="form-sub">Saving creates a weight set effective from the selected month. Earlier months keep their weights.</p>
-          </div>
-          <div class="form-actions">
-            <button type="button" class="btn-submit" id="save-weights" (click)="saveWeights()" [disabled]="loading || !weightsValid">Save</button>
-          </div>
-        </div>
-
-        <div class="kpi-form">
-          <div class="form-row">
-            <div class="form-group">
-              <label for="weight-year">Effective Year</label>
-              <select id="weight-year" [(ngModel)]="weightYear" (ngModelChange)="loadWeights()">
-                <option *ngFor="let y of years" [ngValue]="y">{{ y }}</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="weight-month">Effective Month</label>
-              <select id="weight-month" [(ngModel)]="weightMonth" (ngModelChange)="loadWeights()">
-                <option *ngFor="let m of months" [ngValue]="m.value">{{ m.label }}</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Total Weight (%)</label>
-              <div id="weight-total" class="total-box" [class.is-valid]="weightsValid" [class.is-invalid]="!weightsValid">{{ weightTotal }}%</div>
-              <span *ngIf="!weightsValid" class="error" id="weight-error">Weights must total exactly 100%.</span>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group" *ngFor="let w of weightInputs">
-              <label [attr.for]="'weight-' + w.componentId">{{ w.name }} (%)</label>
-              <input [id]="'weight-' + w.componentId" type="number" min="0" max="100" step="0.0001" [(ngModel)]="w.weightPercent" [placeholder]="w.name + ' (%)'">
-            </div>
-          </div>
-        </div>
+  <section class="form-card">
+    <div class="form-card-header">
+      <div>
+        <h2>{{ isEditing ? 'Edit KPI' : 'Add KPI' }}</h2>
+        <p>Manage Power &amp; A/C KPI records</p>
       </div>
-
-      <div class="table-responsive">
-        <table class="kpi-table">
-          <thead>
-            <tr><th>Effective From</th><th>Component</th><th>Weightage (%)</th><th>Saved By</th><th>Saved At</th></tr>
-          </thead>
-          <tbody>
-            <tr *ngIf="!weightInfo?.history?.length">
-              <td colspan="5" class="no-data">No weights saved yet</td>
-            </tr>
-            <tr *ngFor="let h of weightInfo?.history">
-              <td>{{ months[h.effectiveMonth - 1].label }} {{ h.effectiveYear }}</td>
-              <td>{{ h.componentCode }}</td>
-              <td>{{ h.weightPercent }}</td>
-              <td>{{ h.createdBy }}</td>
-              <td>{{ h.createdAt | date:'medium' }}</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="form-actions">
+        <button type="button" class="btn-primary" (click)="submit()" [disabled]="busy || !form.name">
+          {{ isEditing ? 'Update KPI' : 'Add KPI' }}
+        </button>
+        <button type="button" class="btn-secondary" (click)="cancel()">Cancel</button>
       </div>
-    </ng-container>
-    -->
+    </div>
 
-    <!-- ===================== COMPONENTS ===================== -->
-    <ng-container *ngIf="tab === 'components'">
-      <div class="form-container">
-        <div class="form-header">
-          <div>
-            <h2>{{ componentForm ? (componentForm.isNew ? 'Add KPI' : 'Update KPI') : 'Add KPI' }}</h2>
-            <p class="form-sub">Manage Power &amp; A/C KPI records</p>
-          </div>
-          <div class="form-actions">
-            <button *ngIf="componentForm" type="button" class="btn-submit" (click)="saveComponent(componentForm)" [disabled]="componentForm.saving">
-              {{ componentForm.isNew ? 'Add KPI' : 'Update KPI' }}
-            </button>
-            <button *ngIf="componentForm" type="button" class="btn-cancel" (click)="cancelComponentEdit()" [disabled]="componentForm.saving">Cancel</button>
-            <button *ngIf="!componentForm" type="button" class="btn-submit" (click)="addComponent()" [disabled]="loading">Add KPI</button>
-          </div>
-        </div>
-        <div class="kpi-form" *ngIf="componentForm as c" [class.edit-mode]="!c.isNew">
-          <div class="form-row">
-            <div class="form-group">
-              <label for="comp-name">KPI</label>
-              <input id="comp-name" type="text" maxlength="150" [(ngModel)]="c.name" placeholder="KPI name">
-            </div>
-            <div class="form-group">
-              <label for="comp-source">Category</label>
-              <input id="comp-source" type="text" value="PowerAndAC" readonly>
-            </div>
-            <div class="form-group">
-              <label for="comp-target">Target</label>
-              <input id="comp-target" type="number" min="0" [(ngModel)]="c.targetValue" placeholder="Target">
-            </div>
-            <div class="form-group">
-              <label for="comp-weight">Weightage (%)</label>
-              <input id="comp-weight" type="number" min="0" max="100" step="0.0001" [(ngModel)]="c.weightPercent" placeholder="Weightage (%)">
-            </div>
-          </div>
-          <span *ngIf="c.error" class="error">{{ c.error }}</span>
-        </div>
-      </div>
+    <div class="form-grid">
+      <label>KPI
+        <input class="form-control" [(ngModel)]="form.name" name="kpiName" placeholder="KPI name">
+      </label>
+      <label>Category
+        <input class="form-control" [value]="category" readonly>
+      </label>
+      <label>Target
+        <input class="form-control" type="number" step="any" [(ngModel)]="form.target" name="target">
+      </label>
+      <label>Weightage (%)
+        <input class="form-control" type="number" min="0" max="100" step="any" [(ngModel)]="form.weightage" name="weightage">
+      </label>
+    </div>
+  </section>
 
-      <div class="table-responsive">
-        <table class="kpi-table">
-          <thead>
-            <tr>
-              <th>KPI</th>
-              <th>Category</th>
-              <th>Target</th>
-              <th>Weightage (%)</th>
-              <th class="actions-col">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngIf="!components.length">
-              <td colspan="5" class="no-data">No Power &amp; A/C KPI data available</td>
-            </tr>
-            <tr *ngFor="let c of components">
-              <td>{{ c.name }} <small class="d-block text-muted">{{ c.code }}</small></td>
-              <td>PowerAndAC</td>
-              <td>{{ c.targetValue }} {{ c.targetUnit }}</td>
-              <td>{{ c.currentWeightPercent ?? '—' }}</td>
-              <td class="actions-col">
-                <div class="action-buttons">
-                  <button type="button" class="btn-edit" (click)="editComponent(c)">Edit</button>
-                  <button type="button" class="btn-delete" (click)="deleteComponent(c)" [disabled]="!c.isActive || loading">Delete</button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </ng-container>
-
-    <!-- ===================== SETTINGS =====================
-    Hidden from the Power & A/C configuration screen.
-    <ng-container *ngIf="false && tab === 'settings'">
-      <div class="form-container">
-        <div class="form-header">
-          <div>
-            <h2>Points &amp; Verification</h2>
-            <p class="form-sub">Workbook 'KPI Calculation'!K19: points achieved = IF(composite &gt; target, maximum, maximum × composite ÷ target), target 1.</p>
-          </div>
-          <div class="form-actions">
-            <button type="button" class="btn-submit" (click)="saveSetting()" [disabled]="loading">Save</button>
-          </div>
-        </div>
-        <div class="kpi-form">
-          <div class="form-row">
-            <div class="form-group">
-              <label for="setting-year">Effective Year</label>
-              <select id="setting-year" [(ngModel)]="settingForm.effectiveYear"><option *ngFor="let y of years" [ngValue]="y">{{ y }}</option></select>
-            </div>
-            <div class="form-group">
-              <label for="setting-month">Effective Month</label>
-              <select id="setting-month" [(ngModel)]="settingForm.effectiveMonth"><option *ngFor="let m of months" [ngValue]="m.value">{{ m.label }}</option></select>
-            </div>
-            <div class="form-group">
-              <label for="setting-kpi">KPI Definition Id</label>
-              <input id="setting-kpi" type="number" min="1" [(ngModel)]="settingForm.kpiDefinitionId" placeholder="KPI Definition Id">
-            </div>
-            <div class="form-group">
-              <label for="setting-method">Points Formula</label>
-              <select id="setting-method" [(ngModel)]="settingForm.pointsMethod"><option *ngFor="let m of pointsMethods" [value]="m">{{ m }}</option></select>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label for="setting-target">Composite Target</label>
-              <input id="setting-target" type="number" min="0.0001" step="0.01" [(ngModel)]="settingForm.compositeTarget" placeholder="Composite Target">
-            </div>
-            <div class="form-group check-group">
-              <label class="check-label"><input type="checkbox" [(ngModel)]="settingForm.pointsMethodApproved"> Points formula approved</label>
-            </div>
-            <div class="form-group check-group">
-              <label class="check-label"><input type="checkbox" [(ngModel)]="settingForm.requireVerifiedData"> Only verified data counts</label>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="table-responsive">
-        <table class="kpi-table">
-          <thead>
-            <tr><th>Effective From</th><th>KPI</th><th>Points Applicable</th><th>Formula</th><th>Target</th><th>Approved</th><th>Verified Data Only</th><th>Saved By</th></tr>
-          </thead>
-          <tbody>
-            <tr *ngIf="!settings.length">
-              <td colspan="8" class="no-data">No settings saved yet</td>
-            </tr>
-            <tr *ngFor="let s of settings">
-              <td>{{ months[s.effectiveMonth - 1].label }} {{ s.effectiveYear }}</td>
-              <td>{{ s.kpiDefinitionId }} – {{ s.kpiName }}</td>
-              <td>{{ s.pointsApplicable }}</td>
-              <td>{{ s.pointsMethod }}</td>
-              <td>{{ s.compositeTarget }}</td>
-              <td><span class="yes-no" [class.yes]="s.pointsMethodApproved">{{ s.pointsMethodApproved ? 'Yes' : 'No' }}</span></td>
-              <td><span class="yes-no" [class.yes]="s.requireVerifiedData">{{ s.requireVerifiedData ? 'Yes' : 'No' }}</span></td>
-              <td>{{ s.createdBy }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="form-note"><i class="bi bi-info-circle me-1"></i>Points Applicable comes from the KPI definition on the KPI Management screen.</p>
-    </ng-container>
-    -->
-
-    <!-- ===================== GROUPS ===================== -->
-    <ng-container *ngIf="false && tab === 'groups'">
-      <div class="form-container" *ngIf="groupForm as g">
-        <div class="form-header">
-          <div>
-            <h2>Update Engineer Group – {{ g.workbookAllocationCell }} {{ g.workbookLabel }}</h2>
-            <p class="form-sub">Link the workbook row to a regiondata record and the exact PowerAndAC designation. Results are calculated only for verified mappings.</p>
-          </div>
-          <div class="form-actions">
-            <button type="button" class="btn-submit" (click)="saveGroup(g)" [disabled]="g.saving">Update</button>
-            <button type="button" class="btn-cancel" (click)="cancelGroupEdit()" [disabled]="g.saving">Cancel</button>
-          </div>
-        </div>
-        <div class="kpi-form">
-          <div class="form-row">
-            <div class="form-group">
-              <label for="group-region">regiondata Record</label>
-              <select id="group-region" [(ngModel)]="g.regionDataId">
-                <option [ngValue]="null">— not mapped —</option>
-                <option *ngFor="let r of regions" [ngValue]="r.id">{{ regionLabel(r) }}</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="group-designation">PowerAndAC Designation</label>
-              <input id="group-designation" type="text" maxlength="100" [(ngModel)]="g.pmDesignation" placeholder="e.g. NW/EP">
-            </div>
-            <div class="form-group check-group">
-              <label class="check-label"><input type="checkbox" [(ngModel)]="g.mappingVerified"> Mapping verified</label>
-            </div>
-            <div class="form-group check-group">
-              <label class="check-label"><input type="checkbox" [(ngModel)]="g.isActive"> Active</label>
-            </div>
-          </div>
-          <div class="form-row single">
-            <div class="form-group">
-              <label for="group-note">Mapping Note</label>
-              <textarea id="group-note" rows="2" maxlength="500" [(ngModel)]="g.mappingNote" placeholder="Mapping Note"></textarea>
-            </div>
-          </div>
-          <span *ngIf="g.error" class="error">{{ g.error }}</span>
-        </div>
-      </div>
-
-      <div class="table-responsive">
-        <table class="kpi-table">
-          <thead>
-            <tr>
-              <th>Cell</th>
-              <th>Workbook Label</th>
-              <th>NW EE</th>
-              <th>RTOM Area</th>
-              <th>PowerAndAC Designation</th>
-              <th>Verified</th>
-              <th>Active</th>
-              <th>Note</th>
-              <th class="actions-col">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngIf="!groups.length">
-              <td colspan="9" class="no-data">No engineer groups configured</td>
-            </tr>
-            <tr *ngFor="let g of groups">
-              <td>{{ g.workbookAllocationCell }}</td>
-              <td>{{ g.workbookLabel }}</td>
-              <td>{{ g.networkEngineer || '—' }}</td>
-              <td>{{ g.leaCode || '—' }}</td>
-              <td>{{ g.pmDesignation || '—' }}</td>
-              <td><span class="yes-no" [class.yes]="g.mappingVerified">{{ g.mappingVerified ? 'Yes' : 'No' }}</span></td>
-              <td><span class="yes-no" [class.yes]="g.isActive">{{ g.isActive ? 'Yes' : 'No' }}</span></td>
-              <td class="note-col">{{ g.mappingNote }}</td>
-              <td class="actions-col">
-                <div class="action-buttons">
-                  <button type="button" class="btn-edit" (click)="editGroup(g)">Edit</button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </ng-container>
-
-    <!-- ===================== ASSIGNMENTS ===================== -->
-    <ng-container *ngIf="false && tab === 'assignments'">
-      <div class="form-container">
-        <div class="form-header">
-          <div>
-            <h2>Add Data-entry Access</h2>
-            <p class="form-sub">Platform Admins enter data only for assigned groups, and only with edit rights on the Power &amp; A/C page. Admins can enter data for every group.</p>
-          </div>
-          <div class="form-actions">
-            <button type="button" class="btn-submit" (click)="addAssignment()" [disabled]="loading">Add</button>
-          </div>
-        </div>
-        <div class="kpi-form">
-          <div class="form-row">
-            <div class="form-group">
-              <label for="assign-group">Engineer Group</label>
-              <select id="assign-group" [(ngModel)]="newAssignment.engineerGroupId">
-                <option [ngValue]="null">Choose…</option>
-                <option *ngFor="let g of groups" [ngValue]="g.id">{{ g.code }} ({{ g.workbookAllocationCell }})</option>
-              </select>
-            </div>
-            <div class="form-group wide-group">
-              <label for="assign-user">User</label>
-              <select id="assign-user" [(ngModel)]="newAssignment.userId">
-                <option [ngValue]="null">Choose…</option>
-                <option *ngFor="let u of users" [ngValue]="u.userId">{{ u.name }} ({{ u.serviceId }}, {{ u.role }})</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="table-responsive">
-        <table class="kpi-table">
-          <thead>
-            <tr><th>Engineer Group</th><th>User</th><th>Service ID</th><th>Assigned</th><th>Assigned By</th><th class="actions-col">Actions</th></tr>
-          </thead>
-          <tbody>
-            <tr *ngIf="!assignments.length">
-              <td colspan="6" class="no-data">No assignments yet</td>
-            </tr>
-            <tr *ngFor="let a of assignments">
-              <td>{{ a.engineerGroupCode }}</td>
-              <td>{{ a.userName }}</td>
-              <td>{{ a.serviceId }}</td>
-              <td>{{ a.assignedAt | date:'short' }}</td>
-              <td>{{ a.assignedBy }}</td>
-              <td class="actions-col">
-                <div class="action-buttons">
-                  <button type="button" class="btn-delete" (click)="removeAssignment(a)">Delete</button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </ng-container>
-  </div>
+  <section class="list-card">
+    <table class="kpi-table">
+      <thead>
+        <tr>
+          <th>KPI</th>
+          <th>Category</th>
+          <th>Target</th>
+          <th>Weightage (%)</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of kpis">
+          <td>
+            <div class="kpi-name">{{ row.name }}</div>
+            <div class="kpi-code">{{ displayCode(row) }}</div>
+          </td>
+          <td>{{ row.category }}</td>
+          <td>{{ targetText(row) }}</td>
+          <td>{{ row.weightage }}</td>
+          <td class="actions">
+            <button type="button" class="btn-edit" (click)="edit(row)">Edit</button>
+            <button type="button" class="btn-delete" (click)="remove(row)">Delete</button>
+          </td>
+        </tr>
+        <tr *ngIf="!kpis.length">
+          <td colspan="5" class="empty">No Power &amp; A/C KPIs are configured.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
 </div>

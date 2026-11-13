@@ -53,7 +53,8 @@ export class AdminDropdownComponent implements OnChanges {
     'User Management',
     'Region Management',
     'E-mail Service',
-    'KPI Management'
+    'KPI Management',
+    'Power & A/C KPI Config'
   ]);
 
   /* Labels for platform-related navigation options */

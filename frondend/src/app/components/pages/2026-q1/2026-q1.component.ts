@@ -368,22 +368,19 @@ export class Q1Component implements OnInit, AfterViewInit, OnDestroy {
             this.cdr.detectChanges();
             return;
           }
-          const configuration = await Promise.all([
-            this.powerAcKpiService.getComponents(year, month).toPromise(),
-            this.powerAcKpiService.getSettings().toPromise()
-          ]).catch(error => {
-            console.error('Failed loading Power & A/C configuration for Q1:', error);
+          const powerAcResults = await this.powerAcKpiService.getResults(year, month).toPromise().catch(error => {
+            console.error('Failed loading Power & A/C results for Q1:', error);
             return null;
           });
-          const powerAcComponents = configuration?.[0] ?? [];
-          const powerAcSettings = configuration?.[1] ?? [];
-          const periodSetting = (powerAcSettings ?? []).find(setting =>
-            setting.effectiveYear === year && setting.effectiveMonth === month
-          );
+          const powerAcComponents = (powerAcResults?.components ?? []).map(c => ({
+            name: c.name,
+            targetValue: c.targetPercent,
+            currentWeightPercent: c.weightPercent
+          }));
           this.replaceLegacyPowerAcRows(
             worksheet,
-            powerAcComponents ?? [],
-            periodSetting?.pointsApplicable ?? this.powerAcDefinition?.pointsApplicable ?? 0
+            powerAcComponents,
+            powerAcResults?.pointsApplicable ?? this.powerAcDefinition?.pointsApplicable ?? 0
           );
           const merges: string[] = ((worksheet.model as any).merges) || [];
           //const merges = worksheet.model.merges || [];
@@ -612,8 +609,9 @@ export class Q1Component implements OnInit, AfterViewInit, OnDestroy {
     components: Array<{ name: string; targetValue: number; currentWeightPercent: number | null }>,
     totalPoints: number
   ): void {
-    const activeComponents = components.filter(component => component.name).slice(0, 4);
-    if (activeComponents.length !== 4) return;
+    // One row per configured Power & A/C KPI, so newly added KPIs appear too.
+    const activeComponents = components.filter(component => component.name);
+    if (activeComponents.length === 0) return;
 
     let legacyRowNumber: number | null = null;
     let kpiColumn = 0;

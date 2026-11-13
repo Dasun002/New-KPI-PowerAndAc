@@ -90,22 +90,10 @@ namespace backend.Data
         public DbSet<OtherKpiMetric> OtherKpiMetrics { get; set; } = null!;
       // TELEMETRY / POWER & AC
       public DbSet<Telemetry> Telemetry { get; set; } = null!;
-      public DbSet<PowerAndAC> PowerAndAC { get; set; } = null!;
+      public DbSet<backend.Models.PowerAc.PowerAcPmData> PowerAcPmData { get; set; } = null!;
 
         // =========================
-        // POWER & AC KPI (four-component model, see PowerAcModelConfiguration)
         // =========================
-        public DbSet<backend.Models.PowerAc.PowerAcComponent> PowerAcComponents { get; set; } = null!;
-        public DbSet<backend.Models.PowerAc.PowerAcComponentWeight> PowerAcComponentWeights { get; set; } = null!;
-        public DbSet<backend.Models.PowerAc.PowerAcEngineerGroup> PowerAcEngineerGroups { get; set; } = null!;
-        public DbSet<backend.Models.PowerAc.PowerAcGroupUserAssignment> PowerAcGroupUserAssignments { get; set; } = null!;
-        public DbSet<backend.Models.PowerAc.PowerAcAreaAllocation> PowerAcAreaAllocations { get; set; } = null!;
-        public DbSet<backend.Models.PowerAc.PowerAcComponentResult> PowerAcComponentResults { get; set; } = null!;
-        public DbSet<backend.Models.PowerAc.PowerAcCalculationSetting> PowerAcCalculationSettings { get; set; } = null!;
-        public DbSet<backend.Models.PowerAc.PowerAcKpiResult> PowerAcKpiResults { get; set; } = null!;
-        public DbSet<backend.Models.PowerAc.PowerAcKpiComponentScore> PowerAcKpiComponentScores { get; set; } = null!;
-        public DbSet<backend.Models.PowerAc.PowerAcComponentVersion> PowerAcComponentVersions { get; set; } = null!;
-        public DbSet<backend.Models.PowerAc.PowerAcAuditLog> PowerAcAuditLogs { get; set; } = null!;
 
         // =========================
         // AGED NETWORK FAILURE METRICS
@@ -767,28 +755,7 @@ namespace backend.Data
                   });
 
                   // POWER AND AC
-                  modelBuilder.Entity<PowerAndAC>(entity =>
-                  {
-                        // The table has a trigger, so EF must not use an OUTPUT clause when inserting or updating rows.
-                        entity.ToTable("PowerAndAC", "dbo", tb => tb.UseSqlOutputClause(false));
-                        entity.HasKey(x => x.Id);
-                        entity.Property(x => x.Id).HasColumnName("Id").ValueGeneratedOnAdd();
-                        entity.Property(x => x.Designation).HasColumnName("Designation").HasMaxLength(100).IsRequired();
-                        entity.Property(x => x.Year).HasColumnName("Year");
-                        entity.Property(x => x.Month).HasColumnName("Month");
-                        entity.Property(x => x.Scheduled).HasColumnName("Scheduled");
-                        entity.Property(x => x.Attended).HasColumnName("Attended");
-                        entity.Property(x => x.Cumulative_Sched).HasColumnName("Cumulative_Sched");
-                        entity.Property(x => x.Cumulative_Achieved).HasColumnName("Cumulative_Achieved");
-                        entity.Property(x => x.IsVerified).HasColumnName("is_verified").HasDefaultValue(false);
-
-                        entity.HasIndex(x => new { x.Designation, x.Year, x.Month })
-                                .IsUnique()
-                                .HasDatabaseName("UQ_PowerAndAC_Designation_Year_Month");
-                  });
-
             // POWER & AC KPI COMPONENT TABLES
-            PowerAcModelConfiguration.Configure(modelBuilder);
 
             base.OnModelCreating(modelBuilder);
         }
