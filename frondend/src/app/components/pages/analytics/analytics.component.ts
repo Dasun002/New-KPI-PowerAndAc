@@ -504,6 +504,8 @@ return {
             }));
             // Power & A/C KPI rows (Category PowerAndAC) are shown only through the components below.
             // Each component's points are its weight share of the KPI's points: points x weight / 100.
+            // Same sharing as the 2026-Q1 export: points x weight / total of the configured weights.
+            const totalWeight = components.reduce((sum, c) => sum + (c.currentWeightPercent ?? 0), 0) || 100;
             const expanded = list
               .filter(row => (row.category ?? '') !== 'PowerAndAC')
               .flatMap(row => row.id !== powerAcDefinition.id
@@ -515,7 +517,7 @@ return {
                   keyPerformanceIndicators: component.name,
                   descriptionOfKPI: `${component.targetValue} ${component.targetUnit}`,
                   weightage: component.currentWeightPercent ?? 0,
-                  pointsApplicable: Math.round((row.pointsApplicable * (component.currentWeightPercent ?? 0)) / 100)
+                  pointsApplicable: Math.round((row.pointsApplicable * (component.currentWeightPercent ?? 0)) / totalWeight)
                 })));
             applyDefinitions(expanded);
           },

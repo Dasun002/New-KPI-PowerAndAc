@@ -1,3 +1,4 @@
+using backend.Services.PowerAc;
 /*
  * File: OverallKpiResultsController.cs
  * Calculates and retrieves overall KPI results by aggregating data from multiple KPI platforms.
@@ -343,6 +344,45 @@ namespace backend.Controllers
                     }
                 }
                 if (p == "OTHER OPERATOR KPI" || p == "OTHER OPERATOR" || p.Contains("OPERATOR")) sourceFilter.Add("other");
+
+                if (kpi.Id == PowerAcConfig.PointsKpiDefinitionId)
+                {
+                    // Power & A/C: calculated from the single Power & A/C table. One row per area, summed over the
+                    // engineer groups that are Complete. Incomplete groups add nothing (never a zero).
+                    var components = await PowerAcKpiLoader.LoadScoredAsync(_db);
+                    var pmRows = await _db.PowerAcPmData.AsNoTracking()
+                        .Where(r => r.Year == year.ToString() && r.Month == PowerAcConfig.MonthNames[month - 1])
+                        .ToListAsync();
+                    var powerGroups = PowerAcCalculator.Calculate(pmRows, components, kpi.PointsApplicable);
+                    var complete = powerGroups
+                        .Where(g => g.Status == "Complete")
+                        .Select(g => new
+                        {
+                            Group = g,
+                            Area = CanonicalizeArea(dbRegions.FirstOrDefault(r => r.NetworkEngineer == g.Code)?.LeaCode, officialAreas)
+                        })
+                        .Where(x => x.Area != string.Empty)
+                        .GroupBy(x => x.Area);
+                    foreach (var area in complete)
+                    {
+                        results.Add(new OverallKpiResult
+                        {
+                            KpiCode = $"KPI-{kpi.Id}",
+                            KpiDefinitionId = kpi.Id,
+                            KpiName = kpi.KeyPerformanceIndicators,
+                            Platform = kpi.Perspectives,
+                            AreaCode = area.Key,
+                            TargetValue = 100m,
+                            AchievedKpi = Math.Round(area.Average(x => (x.Group.Composite ?? 0m)) * 100m, 4),
+                            MaximumPointsPerKpi = area.Sum(x => x.Group.MaximumPoints ?? 0m),
+                            PointsAchieved = area.Sum(x => x.Group.PointsAchieved ?? 0m),
+                            Month = month,
+                            Year = year,
+                            CalculatedAt = nowUtc
+                        });
+                    }
+                    continue;
+                }
 
                 if (kpi.KeyPerformanceIndicators.Equals("Routine Maintenance - IPNW", StringComparison.OrdinalIgnoreCase))
                 {

@@ -23,6 +23,7 @@ export interface PowerAcKpiRow {
   target: string;
   unit: string;
   weightage: number;
+  included: boolean;
 }
 
 export interface PowerAcKpiInput {
@@ -31,6 +32,7 @@ export interface PowerAcKpiInput {
   target: string;
   unit: string;
   weightage: number;
+  included?: boolean;
 }
 
 // One engineer group's stored values for a month. Achievements holds one value per configured KPI code.

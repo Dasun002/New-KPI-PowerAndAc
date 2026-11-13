@@ -75,12 +75,7 @@ namespace backend.Services
         // KpiDefinitionId is -(position of the KPI in configuration order + 1), as the analytics page expects.
         private async Task<List<AnalyticsResultDto>> PowerAcRowsAsync(short year, byte startMonth, byte endMonth)
         {
-            var components = (await _db.KpiDefinitions.AsNoTracking()
-                    .Where(k => k.Category == PowerAcConfig.Category)
-                    .OrderBy(k => k.Id)
-                    .ToListAsync())
-                .Select(PowerAcConfig.ToComponent)
-                .ToList();
+            var components = await PowerAcKpiLoader.LoadScoredAsync(_db);
             if (components.Count == 0) return new List<AnalyticsResultDto>();
 
             var pointsApplicable = await _db.KpiDefinitions.AsNoTracking()
@@ -88,6 +83,9 @@ namespace backend.Services
                 .Select(k => (decimal?)k.PointsApplicable)
                 .FirstOrDefaultAsync();
             var regions = await _db.RegionData.AsNoTracking().ToListAsync();
+            // Same sharing as the 2026-Q1 export: each KPI's share is its weight divided by the total of the configured weights.
+            var totalWeight = components.Sum(c => c.WeightPercent);
+            if (totalWeight <= 0m) totalWeight = 100m;
             var y = year.ToString();
             var rows = new List<AnalyticsResultDto>();
 
@@ -106,7 +104,7 @@ namespace backend.Services
                         var component = components[i];
                         var achievement = group.Achievement.TryGetValue(component.Code, out var a) ? a : null;
                         if (achievement is null || group.MaximumPoints is null) continue;
-                        var maxPoints = group.MaximumPoints.Value * component.WeightPercent / 100m;
+                        var maxPoints = group.MaximumPoints.Value * component.WeightPercent / totalWeight;
                         rows.Add(new AnalyticsResultDto
                         {
                             KpiDefinitionId = -(i + 1),

@@ -26,7 +26,7 @@ export class PowerAcConfigComponent implements OnInit {
 
   kpis: PowerAcKpiRow[] = [];
   editingId: number | null = null;
-  form = { name: '', target: '0', weightage: 0 };
+  form = { name: '', target: '0', weightage: 0, included: true };
   message = '';
   error = '';
   busy = false;
@@ -78,7 +78,8 @@ export class PowerAcConfigComponent implements OnInit {
       code: existing?.code ?? this.codeFor(name),
       target: String(this.form.target ?? '').trim(),
       unit: existing?.unit ?? known?.unit ?? '%',
-      weightage: Number(this.form.weightage)
+      weightage: Number(this.form.weightage),
+      included: this.form.included
     };
     this.busy = true;
     this.error = '';
@@ -98,15 +99,31 @@ export class PowerAcConfigComponent implements OnInit {
 
   edit(row: PowerAcKpiRow): void {
     this.editingId = row.id;
-    this.form = { name: row.name, target: row.target, weightage: row.weightage };
+    this.form = { name: row.name, target: row.target, weightage: row.weightage, included: row.included };
     this.message = '';
     this.error = '';
   }
 
   cancel(): void {
     this.editingId = null;
-    this.form = { name: '', target: '0', weightage: 0 };
+    this.form = { name: '', target: '0', weightage: 0, included: true };
     this.error = '';
+  }
+
+  // Adds or removes a KPI from the scored set without changing anything else.
+  toggleIncluded(row: PowerAcKpiRow): void {
+    const input: PowerAcKpiInput = {
+      name: row.name,
+      code: row.code,
+      target: row.target,
+      unit: row.unit,
+      weightage: row.weightage,
+      included: !row.included
+    };
+    this.api.updateKpi(row.id, input).subscribe({
+      next: () => { this.message = input.included ? 'KPI included in scoring.' : 'KPI excluded from scoring.'; this.load(); },
+      error: err => this.fail(err, 'change the scoring setting')
+    });
   }
 
   remove(row: PowerAcKpiRow): void {

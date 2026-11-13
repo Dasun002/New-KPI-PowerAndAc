@@ -80,3 +80,5 @@
 @media (max-width: 800px) {
   .form-grid { grid-template-columns: 1fr 1fr; }
 }
+
+.include-label { flex-direction: row !important; align-items: center; gap: 0.5rem; align-self: end; padding-bottom: 0.6rem; }

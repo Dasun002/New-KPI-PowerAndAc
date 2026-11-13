@@ -32,6 +32,8 @@ namespace backend.Controllers
             public string Target { get; set; } = string.Empty;
             public string Unit { get; set; } = "%";
             public decimal Weightage { get; set; }
+            // Whether the KPI is part of the scored set. New KPIs are included by default.
+            public bool Included { get; set; } = true;
         }
 
         public class KpiRowDto
@@ -43,6 +45,7 @@ namespace backend.Controllers
             public string Target { get; set; } = string.Empty;
             public string Unit { get; set; } = string.Empty;
             public decimal Weightage { get; set; }
+            public bool Included { get; set; }
         }
 
         [HttpGet("kpis")]
@@ -73,6 +76,7 @@ namespace backend.Controllers
                 Unit = dto.Unit.Trim(),
                 DescriptionOfKPI = dto.Target.Trim(),
                 Weightage = dto.Weightage,
+                IncludeInScoring = dto.Included,
                 PointsApplicable = 0,
                 Category = PowerAcConfig.Category,
                 CreatedAt = now,
@@ -99,6 +103,7 @@ namespace backend.Controllers
             row.Unit = dto.Unit.Trim();
             row.DescriptionOfKPI = dto.Target.Trim();
             row.Weightage = dto.Weightage;
+            row.IncludeInScoring = dto.Included;
             row.UpdatedAt = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
             await _db.SaveChangesAsync();
             return Ok(ToDto(row));
@@ -137,7 +142,8 @@ namespace backend.Controllers
             Category = k.Category ?? string.Empty,
             Target = k.DescriptionOfKPI,
             Unit = k.Unit,
-            Weightage = k.Weightage
+            Weightage = k.Weightage,
+            Included = k.IncludeInScoring
         };
     }
 }

@@ -242,14 +242,7 @@ namespace backend.Controllers
 
         // Read-only queries use AsNoTracking. Verify reads tracked rows so its changes are saved.
         // The Power & A/C KPIs are KpiDefinition rows with Category = PowerAndAC (code in StrategicObjectives).
-        public static async Task<List<PowerAcConfig.Component>> LoadComponentsAsync(AppDbContext db)
-        {
-            var rows = await db.KpiDefinitions.AsNoTracking()
-                .Where(k => k.Category == PowerAcConfig.Category)
-                .OrderBy(k => k.Id)
-                .ToListAsync();
-            return rows.Select(k => PowerAcConfig.ToComponent(k)).ToList();
-        }
+        public static Task<List<PowerAcConfig.Component>> LoadComponentsAsync(AppDbContext db) => PowerAcKpiLoader.LoadScoredAsync(db);
 
         private Task<List<PowerAcConfig.Component>> LoadComponentsAsync() => LoadComponentsAsync(_db);
 

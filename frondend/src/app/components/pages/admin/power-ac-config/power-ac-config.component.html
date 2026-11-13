@@ -32,6 +32,9 @@
       <label>Weightage (%)
         <input class="form-control" type="number" min="0" max="100" step="any" [(ngModel)]="form.weightage" name="weightage">
       </label>
+      <label class="include-label">
+        <input type="checkbox" [(ngModel)]="form.included" name="included"> Include in scoring
+      </label>
     </div>
   </section>
 
@@ -43,6 +46,7 @@
           <th>Category</th>
           <th>Target</th>
           <th>Weightage (%)</th>
+          <th>Scored</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -55,13 +59,14 @@
           <td>{{ row.category }}</td>
           <td>{{ targetText(row) }}</td>
           <td>{{ row.weightage }}</td>
+          <td><input type="checkbox" [checked]="row.included" (change)="toggleIncluded(row)"></td>
           <td class="actions">
             <button type="button" class="btn-edit" (click)="edit(row)">Edit</button>
             <button type="button" class="btn-delete" (click)="remove(row)">Delete</button>
           </td>
         </tr>
         <tr *ngIf="!kpis.length">
-          <td colspan="5" class="empty">No Power &amp; A/C KPIs are configured.</td>
+          <td colspan="6" class="empty">No Power &amp; A/C KPIs are configured.</td>
         </tr>
       </tbody>
     </table>

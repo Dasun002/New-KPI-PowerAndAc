@@ -50,6 +50,10 @@ namespace backend.Models
         [Column("pointsApplicable")]
         public int PointsApplicable { get; set; } = 0;
 
+        // Power & A/C KPIs only: whether the KPI is part of the scored set. New KPIs are included by default.
+        [Column("include_in_scoring")]
+        public bool IncludeInScoring { get; set; } = true;
+
         // Total points used for weightage calculation
         [Column("totalPoints")]
         public int TotalPoints { get; set; } = 36000;
