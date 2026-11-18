@@ -1,0 +1,119 @@
+<div class="kpi-page">
+  <div class="kpi-overlay"></div>
+
+  <!-- HERO -->
+  <section class="kpi-hero">
+    <h1>{{ pageTitle }}</h1>
+
+    <!--    <div class="meta-line">-->
+    <!--      <small>-->
+    <!--        {{ data.length }} records •-->
+    <!--        <span class="meta-badge" [class.editing]="editingId">-->
+    <!--          {{ editingId ? 'Editing mode' : 'Add mode' }}-->
+    <!--        </span>-->
+    <!--      </small>-->
+    <!--    </div>-->
+  </section>
+
+  <div class="dashboard-container">
+
+    <!-- LOADING -->
+    <section class="table-section" *ngIf="loading">
+      <div class="state">Loading KPI data...</div>
+    </section>
+
+    <!-- ERROR -->
+    <section class="table-section" *ngIf="!loading && error">
+      <div class="state error">
+        {{ error }}
+        <div style="margin-top: 12px;">
+          <button type="button" class="secondary" (click)="loadData()">Retry</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- FORM -->
+    <section class="form-section" *ngIf="!loading && !error">
+      <div class="form-container">
+        <div class="form-header">
+          <div>
+            <h2>{{ editingId ? 'Update KPI Row' : 'Create KPI Row' }}</h2>
+            <p class="form-sub">Manage IP Network Operations KPI settings</p>
+          </div>
+          <div class="form-actions">
+            <button class="btn-submit" type="submit" form="ip-nw-op-form" [disabled]="ipNwOpForm.invalid">
+              {{ editingId ? 'Update' : 'Add' }}
+            </button>
+            <button type="button" class="btn-cancel secondary" *ngIf="editingId" (click)="cancelEdit()">
+              Cancel
+            </button>
+          </div>
+        </div>
+
+        <form id="ip-nw-op-form" #ipNwOpForm="ngForm" class="kpi-form" (ngSubmit)="save()">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="kpi">Network Engineer KPI</label>
+              <input id="kpi" type="text" required [ngModel]="form.network_engineer_kpi"
+                (ngModelChange)="handleInputChange('kpi', $event)" name="kpi" placeholder="Network Engineer KPI" />
+            </div>
+
+            <div class="form-group">
+              <label for="division">Category</label>
+              <input id="division" type="text" required [ngModel]="form.division"
+                (ngModelChange)="handleInputChange('division', $event)" name="Category" placeholder="Category" />
+            </div>
+
+            <div class="form-group">
+              <label for="section">Target</label>
+              <input id="section" type="text" required [ngModel]="form.section"
+                (ngModelChange)="handleInputChange('section', $event)" name="Target" placeholder="Target" />
+            </div>
+
+            <div class="form-group">
+              <label for="kpi_percent">Weightage (%)</label>
+              <input id="kpi_percent" type="number" required step="0.01" [ngModel]="form.kpi_percent"
+                (ngModelChange)="handleInputChange('kpi_percent', $event)" name="Weightage"
+                placeholder="Weightage (%)" />
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- TABLE -->
+    <section class="table-section" *ngIf="!loading && !error">
+      <div class="state" *ngIf="!data.length">No KPI entries yet.</div>
+
+      <div class="table-responsive" *ngIf="data.length">
+        <table class="kpi-table">
+          <thead>
+            <tr>
+              <th>Network Engineer KPI</th>
+              <th>Category</th>
+              <th>Target</th>
+              <th>Weightage (%)</th>
+              <th class="actions-col">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngFor="let item of data">
+              <td>{{ item.network_engineer_kpi }}</td>
+              <td>{{ item.division }}</td>
+              <td>{{ item.section }}</td>
+              <td>{{ item.kpi_percent }}</td>
+              <td class="actions-col">
+                <div class="action-buttons">
+                  <button type="button" class="btn-edit" (click)="editRow(item)">Edit</button>
+                  <button type="button" class="btn-delete" (click)="deleteRow(item.id)">Delete</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+</div>

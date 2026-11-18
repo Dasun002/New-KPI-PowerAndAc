@@ -1,0 +1,90 @@
+<div class="kpi-page">
+  <div class="kpi-overlay"></div>
+  <section class="kpi-hero">
+    <h1>{{ pageTitle }}</h1>
+    <p>Define TM KPIs, responsible teams, and supporting data sources.</p>
+  </section>
+
+  <section class="form-section">
+    <form class="kpi-form" [formGroup]="form" (ngSubmit)="onSubmit()">
+      <h2>{{ editingId ? 'Update Activity' : 'Add Activity' }}</h2>
+      <div class="field-group">
+        <input type="text" formControlName="kpi" placeholder="KPI" required />
+        <span class="error" *ngIf="form.controls.kpi.invalid && form.controls.kpi.touched">Required</span>
+      </div>
+      <div class="field-group">
+        <input type="text" formControlName="target" placeholder="Target" required />
+        <span class="error" *ngIf="form.controls.target.invalid && form.controls.target.touched">Required</span>
+      </div>
+      <div class="field-group">
+        <input type="text" formControlName="calculation" placeholder="Calculation" required />
+        <span class="error"
+          *ngIf="form.controls.calculation.invalid && form.controls.calculation.touched">Required</span>
+      </div>
+      <div class="field-group">
+        <input type="text" formControlName="platform" placeholder="Platform" required />
+        <span class="error" *ngIf="form.controls.platform.invalid && form.controls.platform.touched">Required</span>
+      </div>
+      <div class="field-group">
+        <input type="text" formControlName="responsibleDGM" placeholder="Responsible DGM" required />
+        <span class="error"
+          *ngIf="form.controls.responsibleDGM.invalid && form.controls.responsibleDGM.touched">Required</span>
+      </div>
+      <div class="field-group">
+        <input type="text" formControlName="definedOLADetails" placeholder="Defined OLA Details" required />
+        <span class="error"
+          *ngIf="form.controls.definedOLADetails.invalid && form.controls.definedOLADetails.touched">Required</span>
+      </div>
+      <div class="field-group">
+        <input type="text" formControlName="dataSources" placeholder="Data Sources" required />
+        <span class="error"
+          *ngIf="form.controls.dataSources.invalid && form.controls.dataSources.touched">Required</span>
+      </div>
+
+      <div class="actions">
+        <button type="submit" [disabled]="form.invalid || saving">
+          {{ editingId ? 'Update' : 'Add' }}
+        </button>
+        <button type="button" class="secondary" *ngIf="editingId" (click)="onCancelEdit()" [disabled]="saving">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="table-section">
+    <div class="state" *ngIf="loading">Loading TM activities...</div>
+    <div class="state error" *ngIf="!loading && errorMessage">{{ errorMessage }}</div>
+    <div class="state" *ngIf="!loading && !errorMessage && !records.length">No TM activities yet.</div>
+
+    <table *ngIf="!loading && records.length" class="kpi-table">
+      <thead>
+        <tr>
+          <th>KPI</th>
+          <th>Target</th>
+          <th>Calculation</th>
+          <th>Platform</th>
+          <th>Responsible DGM</th>
+          <th>OLA Details</th>
+          <th>Data Sources</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let record of records">
+          <td>{{ record.kpi }}</td>
+          <td>{{ record.target }}</td>
+          <td>{{ record.calculation }}</td>
+          <td>{{ record.platform }}</td>
+          <td>{{ record.responsibleDGM }}</td>
+          <td>{{ record.definedOLADetails }}</td>
+          <td>{{ record.dataSources }}</td>
+          <td>
+            <button type="button" class="edit" (click)="onEdit(record)" [disabled]="saving">Edit</button>
+            <button type="button" class="delete" (click)="onDelete(record.id!)" [disabled]="saving">Delete</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+</div>

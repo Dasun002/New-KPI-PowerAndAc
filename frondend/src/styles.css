@@ -1,0 +1,82 @@
+/* You can add global styles to this file, and also import other style files */
+
+/* Global Reset and Base Styles */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  font-family: Arial, sans-serif;
+  /* 60% Primary - Light grey background */
+  background-color: #F4F4F4;
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: 'liga';
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
+}
+
+/* Ensure dropdowns are hidden by default */
+.dropdown-menu {
+  display: none !important;
+}
+
+.dropdown-menu.visible {
+  display: block !important;
+}
+
+/* Consistent headline styling across platform/admin pages */
+.page-header h1,
+.hero-panel h1,
+.kpi-hero h1,
+.current-month-header h1,
+.header-left h1 {
+  color: #0057a6;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+/* Standard export button style (Overall KPI layout + TM Activity color) */
+.export-btn {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid #cbd5e1;
+  background: linear-gradient(135deg, #4c98ee, #0f8a4c);
+  color: #ffffff;
+}
+
+.export-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #3f8ce6, #0c7b44);
+  border-color: #94a3b8;
+}
+
+.export-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

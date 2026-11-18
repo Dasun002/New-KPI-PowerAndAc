@@ -1,0 +1,63 @@
+<!-- Renders the email recipient form, edit state, validation messages, and recipient list. -->
+<div class="page-container">
+  <div class="page-header">
+    <h1>{{ pageTitle }}</h1>
+  </div>
+
+  <div class="dashboard-container">
+    <div class="form-container">
+      <div class="form-header">
+        <div>
+          <h2>{{ formTitle }}</h2>
+          <p class="form-note">Manage recipients for automated KPI emails</p>
+        </div>
+        <div class="form-actions">
+          <button class="btn-submit" type="submit" form="email-service-form" [disabled]="form.invalid || saving">{{ submitButtonLabel }}</button>
+          <button class="btn-cancel" type="button" *ngIf="editingId" (click)="onCancelEdit()" [disabled]="saving">Cancel</button>
+        </div>
+      </div>
+
+      <form id="email-service-form" class="kpi-form" [formGroup]="form" (ngSubmit)="onSubmit()" [class.edit-mode]="editingId">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="email">Email address</label>
+            <input id="email" type="email" formControlName="email" placeholder="Email address" autocomplete="off" [class.editing]="editingId" />
+            <span class="error" *ngIf="form.controls.email.touched && form.controls.email.invalid">Please provide a valid email address.</span>
+          </div>
+        </div>
+
+      </form>
+
+      <div *ngIf="editingId" class="edit-hint">
+        <span>Editing recipient. Make changes and click <b>Update Recipient</b> or <b>Cancel</b> to discard.</span>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <div class="state" *ngIf="loading">Loading recipients...</div>
+      <div class="state error" *ngIf="!loading && errorMessage">{{ errorMessage }}</div>
+      <div class="state" *ngIf="!loading && !errorMessage && !recipients.length">No recipients configured.</div>
+
+      <table class="kpi-table" *ngIf="!loading && recipients.length">
+        <thead>
+          <tr>
+            <th>Email Address</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let recipient of recipients">
+            <td>{{ recipient.email }}</td>
+            <td class="actions-col">
+              <div class="action-buttons">
+                <button type="button" class="btn-edit" (click)="onEdit(recipient)" [disabled]="saving">Edit</button>
+                <button type="button" class="btn-delete" (click)="onDelete(recipient.id)" [disabled]="saving">Delete</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+

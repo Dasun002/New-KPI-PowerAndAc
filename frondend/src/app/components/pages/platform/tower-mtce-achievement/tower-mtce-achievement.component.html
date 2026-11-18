@@ -1,0 +1,51 @@
+<div class="kpi-page">
+
+  <section class="hero-panel">
+    <div class="hero-content">
+      <h1>{{ pageTitle }}</h1>
+      <p class="hero-subtitle">{{ heroSubtitle }}</p>
+    </div>
+    <div class="hero-actions">
+      <button class="export-btn" (click)="exportToExcel()" [disabled]="loading">
+        Export to Excel
+      </button>
+    </div>
+  </section>
+
+  <div *ngIf="loading">Loading...</div>
+
+  <!-- ✅ SCROLL CONTAINER (IMPORTANT) -->
+  <div class="table-scroll" *ngIf="!loading">
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>No</th>
+          <th>Network Engineers Responsibility</th>
+          <th>Frequency</th>
+          <th>Weightage</th>
+          <th>KPI (%)</th>
+          <th *ngFor="let h of headers; trackBy: trackByHeader">
+            {{ h }}
+          </th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr *ngFor="let r of kpiTowerData; let i = index; trackBy: trackByRow">
+          <td>{{ r.no }}</td>
+          <td>{{ formatText(r.responsibility) }}</td>
+          <td>{{ formatText(r.frequency) }}</td>
+          <td>{{ formatText(r.weightage) }}</td>
+          <td>{{ formatText(r.kpi) }}</td>
+
+          <td *ngFor="let h of headers; let j = index">
+            {{ formatWeightedValue(i, j) }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+  </div>
+
+</div>

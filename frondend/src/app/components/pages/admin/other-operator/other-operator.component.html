@@ -1,0 +1,141 @@
+<!-- Renders Other Operator KPI records and period-specific target editors. -->
+<div class="page-container">
+  <div class="page-header">
+    <h1>{{ pageTitle }}</h1>
+  </div>
+
+  <div class="dashboard-container">
+    <div class="form-container">
+      <div class="form-header">
+        <div>
+          <h2>{{ editingId ? 'Update KPI' : 'Add KPI' }}</h2>
+          <p class="form-sub">Manage Other Operator KPI records</p>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-submit" form="other-operator-form" [disabled]="form.invalid || saving">
+            {{ editingId ? 'Update' : 'Add' }}
+          </button>
+          <button type="button" class="btn-cancel" *ngIf="editingId" (click)="onCancelEdit()" [disabled]="saving">
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      <form id="other-operator-form" class="kpi-form" [formGroup]="form" (ngSubmit)="onSubmit()">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Responsibility</label>
+            <input type="text" formControlName="networkEngineerKpi" placeholder="Responsibility" />
+          </div>
+
+          <div class="form-group">
+            <label>Category</label>
+            <input type="text" formControlName="division" placeholder="Category" />
+          </div>
+
+          <div class="form-group">
+            <label>Target</label>
+            <input type="text" formControlName="section" placeholder="Target" />
+          </div>
+
+          <div class="form-group">
+            <label>Weightage (%)</label>
+            <input type="number" step="any" formControlName="kpiPercent" placeholder="Weightage (%)" />
+          </div>
+        </div>
+
+
+      </form>
+    </div>
+
+    <div class="table-wrapper">
+      <div class="table-responsive">
+        <table class="kpi-table">
+          <thead>
+            <tr>
+              <th>Network Engineers KPI</th>
+              <th>Category</th>
+              <th>Target</th>
+              <th>Weightage (%)</th>
+              <th class="actions-col">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngIf="records.length===0">
+              <td colspan="5" class="no-data">No KPI data available</td>
+            </tr>
+
+            <tr *ngFor="let record of records">
+              <td>{{ record.networkEngineerKpi }}</td>
+              <td>{{ record.division }}</td>
+              <td>{{ record.section }}</td>
+              <td>{{ record.kpiPercent }}</td>
+              <td class="actions-col">
+                <div class="action-buttons">
+                  <button type="button" class="btn-edit" (click)="onEdit(record)">Edit</button>
+                  <button type="button" class="btn-delete" (click)="onDelete(record.id)">Delete</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="table-wrapper mt-5">
+      <div class="table-header bg-primary text-white d-flex justify-content-between align-items-center mb-3" style="padding: 10px; border-radius: 5px;">
+        <h3 (click)="toggleTargetsExpanded()" style="cursor: pointer;" class="m-0 text-white">
+          <i class="bi" [ngClass]="targetsExpanded ? 'bi-chevron-down' : 'bi-chevron-right'"></i> 
+          Variable Target Assignment
+        </h3>
+        
+        <div class="d-flex align-items-center gap-2" *ngIf="targetsExpanded">
+          <label class="mb-0 fw-bold text-white">Month:</label>
+          <select class="form-select form-select-sm" [(ngModel)]="selectedMonth" (change)="onTargetPeriodChange()" style="width: auto;">
+            <option *ngFor="let m of monthOptions" [value]="m.value">{{ m.label }}</option>
+          </select>
+
+          <label class="mb-0 fw-bold ms-3 text-white">Year:</label>
+          <select class="form-select form-select-sm" [(ngModel)]="selectedYear" (change)="onTargetPeriodChange()" style="width: auto;">
+            <option *ngFor="let y of yearOptions" [value]="y">{{ y }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-responsive" *ngIf="targetsExpanded">
+        <table class="kpi-table">
+          <thead>
+            <tr>
+              <th>KPI ID</th>
+              <th>KPI Name</th>
+              <th>Target</th>
+              <th class="actions-col">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngIf="records.length === 0">
+              <td colspan="4" class="no-data">No KPIs available to assign targets.</td>
+            </tr>
+            <tr *ngFor="let record of records">
+              <td>{{ record.id }}</td>
+              <td>{{ record.networkEngineerKpi }}</td>
+              <td>
+                <input type="text" class="form-control form-control-sm" 
+                       [(ngModel)]="targetEditValues[record.id]" 
+                       placeholder="Enter Target" />
+              </td>
+              <td class="actions-col">
+                <button type="button" class="btn-submit btn-sm" 
+                        (click)="saveTarget(record.id)" 
+                        [disabled]="targetSaving[record.id]">
+                  {{ targetSaving[record.id] ? 'Saving...' : 'Save' }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>

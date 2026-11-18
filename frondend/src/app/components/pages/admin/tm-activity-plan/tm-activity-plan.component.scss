@@ -1,0 +1,292 @@
+//@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap');
+
+:host {
+  display: block;
+  min-height: 100vh;
+  position: relative;
+  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+  color: #102136;
+  background-image: url('/NW_KPI_Monitoring/assets/admin/SLT-Mobitel.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+:host::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(248, 250, 252, 0.5);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  z-index: 0;
+}
+
+.kpi-page {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  padding: 3rem 1.5rem 4rem;
+  background: linear-gradient(135deg, rgba(240, 247, 255, 0.45), rgba(198, 224, 255, 0.35));
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(16, 33, 54, 0.05);
+  overflow: hidden;
+}
+
+.kpi-overlay {
+  position: absolute;
+  inset: 0;
+  background: url('/assets/admin/network-grid.svg') center/600px repeat,
+    linear-gradient(135deg, rgba(16, 33, 54, 0.08), rgba(0, 122, 211, 0.08));
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.kpi-hero {
+  position: relative;
+  text-align: center;
+  max-width: 720px;
+  margin: 0 auto 2.5rem;
+}
+
+.kpi-hero h1 {
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  margin: 0.5rem 0;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #0057A6;
+}
+
+.kpi-hero p {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #0f1b2c;
+}
+
+.form-section {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2.5rem;
+}
+
+.kpi-form {
+  width: min(440px, 100%);
+  background: #fff;
+  border-radius: 18px;
+  padding: 2rem;
+  box-shadow: 0 20px 50px rgba(16, 33, 54, 0.15);
+  border: 1px solid rgba(16, 33, 54, 0.08);
+}
+
+.kpi-form h2 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+}
+
+.field-group input {
+  padding: 0.85rem 1rem;
+  border: 1px solid #d7dfee;
+  border-radius: 10px;
+  font-size: 1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  background: #f9fbff;
+}
+
+.field-group input:focus {
+  outline: none;
+  border-color: #1f7ae0;
+  box-shadow: 0 0 0 3px rgba(31, 122, 224, 0.2);
+  background: #fff;
+}
+
+.field-group .error {
+  font-size: 0.8rem;
+  color: #c62828;
+  margin-top: 0.35rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.actions button {
+  flex: 1;
+  padding: 0.85rem 1rem;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.actions button[disabled] {
+  cursor: not-allowed;
+  opacity: 0.7;
+  box-shadow: none;
+}
+
+.actions button:first-child {
+  background: linear-gradient(135deg, #1f7ae0, #0a48a4);
+  color: #fff;
+  box-shadow: 0 10px 20px rgba(31, 122, 224, 0.3);
+}
+
+.actions button.secondary {
+  background: #ecf2ff;
+  color: #0a48a4;
+  box-shadow: inset 0 0 0 1px rgba(10, 72, 164, 0.3);
+}
+
+.actions button:not([disabled]):hover {
+  transform: translateY(-1px);
+}
+
+.table-section {
+  position: relative;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 25px 60px rgba(16, 33, 54, 0.12);
+  border: 1px solid rgba(16, 33, 54, 0.05);
+}
+
+.state {
+  text-align: center;
+  font-size: 1rem;
+  padding: 1rem;
+  color: #0a48a4;
+}
+
+.state.error {
+  color: #c62828;
+}
+
+.kpi-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+  color: #0f1b2c;
+}
+
+.kpi-table thead {
+  background: #0057A6;
+  color: #fff;
+}
+
+.kpi-table th {
+  border-right: 1px solid rgba(255, 255, 255, 0.85);
+}
+
+.kpi-table th:last-child {
+  border-right: none;
+}
+
+.kpi-table thead th {
+  background-clip: padding-box;
+}
+
+.kpi-table thead tr:first-child th:first-child {
+  border-top-left-radius: 12px;
+}
+
+.kpi-table thead tr:first-child th:last-child {
+  border-top-right-radius: 12px;
+}
+
+.kpi-table th,
+.kpi-table td {
+  padding: 0.9rem 0.75rem;
+  border-bottom: 1px solid rgba(15, 27, 44, 0.08);
+}
+
+.kpi-table tbody tr:hover {
+  background: rgba(15, 102, 195, 0.05);
+}
+
+.kpi-table button {
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-right: 0.35rem;
+  transition: opacity 0.15s ease;
+}
+
+.kpi-table button:last-child {
+  margin-right: 0;
+}
+
+.kpi-table button.edit {
+  background: #26a65b;
+  color: #fff;
+}
+
+.kpi-table button.delete {
+  background: #d7263d;
+  color: #fff;
+}
+
+.kpi-table button[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .kpi-page {
+    padding: 2rem 1rem 3rem;
+  }
+
+  .kpi-form {
+    padding: 1.5rem;
+  }
+
+  .table-section {
+    padding: 1.25rem;
+  }
+
+  .kpi-table {
+    display: block;
+    overflow-x: auto;
+  }
+  }
+  /* ---------- Local Space Grotesk Fonts ---------- */
+  @font-face {
+    font-family: 'Space Grotesk';
+    src: url('/assets/fonts/SpaceGrotesk/SpaceGrotesk-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: 'Space Grotesk';
+    src: url('/assets/fonts/SpaceGrotesk/SpaceGrotesk-Medium.ttf') format('truetype');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: 'Space Grotesk';
+    src: url('/assets/fonts/SpaceGrotesk/SpaceGrotesk-SemiBold.ttf') format('truetype');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+  }
+
+
+
