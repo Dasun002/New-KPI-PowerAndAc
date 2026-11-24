@@ -1,0 +1,257 @@
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100vw;
+  background-image: url('/assets/admin/SLT-Mobitel.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  position: relative;
+}
+
+.login-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(145deg, rgba(251, 253, 255, 0.85), rgba(248, 250, 252, 0.9));
+    z-index: 1;
+    pointer-events: none;
+}
+
+.login-container > * {
+    position: relative;
+    z-index: 2;
+}
+
+.login-card {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    width: 100%;
+    max-width: 400px;
+}
+
+.logo-header {
+    background-color: #005eb8;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border-radius: 8px;
+    color: white;
+}
+
+.logo {
+    height: 40px;
+    width: auto;
+    filter: brightness(0) invert(1);
+}
+
+.title-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.title-main {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.title-sub {
+    font-weight: 400;
+    font-size: 1rem;
+}
+
+.azure-success-banner {
+    background-color: #e6f4ea;
+    border: 1px solid #ceead6;
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.banner-content {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+}
+
+.check-icon {
+    width: 20px;
+    height: 20px;
+    color: #1e8e3e;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.banner-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.auth-msg {
+    font-weight: 600;
+    color: #1e8e3e;
+    font-size: 0.9rem;
+}
+
+.auth-email {
+    color: #5f6368;
+    font-size: 0.8rem;
+    word-break: break-all;
+}
+
+.cancel-link {
+    background: none;
+    border: none;
+    color: #1a73e8;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+}
+
+.cancel-link:hover {
+    color: #174ea6;
+}
+
+.login-btn {
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0.85rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.login-btn:hover:not(:disabled) {
+    background-color: #43a047;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.login-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.login-btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #444;
+}
+
+.form-control {
+    padding: 0.85rem;
+    border: 1.5px solid #dee2e6;
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+
+.form-control:focus {
+    border-color: #005eb8;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 94, 184, 0.1);
+}
+
+.form-text {
+    font-size: 0.8rem;
+    color: #70757a;
+    margin-top: -0.3rem;
+}
+
+.error-message {
+    color: #d93025;
+    font-size: 0.9rem;
+    text-align: center;
+    background-color: #fce8e6;
+    border: 1px solid #f9ab0000;
+    border-radius: 6px;
+    padding: 0.75rem;
+}
+
+.separator {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: #70757a;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.separator::before,
+.separator::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid #e8eaed;
+}
+
+.separator:not(:empty)::before {
+    margin-right: 1rem;
+}
+
+.separator:not(:empty)::after {
+    margin-left: 1rem;
+}
+
+.azure-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    background-color: white;
+    color: #3c4043;
+    border: 1px solid #dadce0;
+    border-radius: 6px;
+    padding: 0.85rem;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.azure-btn:hover:not(:disabled) {
+    background-color: #f8f9fa;
+    border-color: #d2d4d7;
+    box-shadow: 0 1px 3px rgba(60, 64, 67, 0.3);
+}
+
+.azure-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.ms-logo {
+    height: 18px;
+    width: 18px;
+}

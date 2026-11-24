@@ -1,0 +1,217 @@
+<div class="page-container">
+  <div class="page-header">
+    <div class="header-info">
+      <h1>Power &amp; AC</h1>
+      <p class="page-subtitle">Preventive Maintenance, Critical Safety, Corrective Action and Power System Availability across network areas.</p>
+    </div>
+    <form (submit)="$event.preventDefault()" class="filters-form pac-filters">
+      <div class="pac-filter-column">
+        <label for="pac-month" class="form-label">Month:</label>
+        <select id="pac-month" class="form-select" [(ngModel)]="month" (change)="onPeriodChange()" name="month">
+          <option *ngFor="let m of months; let i = index" [ngValue]="i + 1">{{ m }}</option>
+        </select>
+      </div>
+      <div class="pac-filter-column">
+        <label for="pac-year" class="form-label">Year:</label>
+        <select id="pac-year" class="form-select" [(ngModel)]="year" (change)="onPeriodChange()" name="year">
+          <option *ngFor="let y of yearOptions" [ngValue]="y">{{ y }}</option>
+        </select>
+      </div>
+    </form>
+  </div>
+
+  <div class="state info" *ngIf="loading">Loading {{ months[month - 1] }} {{ year }}…</div>
+  <div class="state error" *ngIf="error">{{ error }}</div>
+  <div class="state success" *ngIf="message && !error">{{ message }}</div>
+
+  <ng-container *ngIf="results && !loading">
+    <div class="state warning global-issues" *ngIf="results.groups.length && results.groups[0].issues.length">
+      <strong>Points are not calculated yet for every group:</strong>
+      <ul>
+        <li *ngFor="let issue of results.groups[0].issues">{{ issue }}</li>
+      </ul>
+    </div>
+
+    <!-- 1. Overview (calculated) -->
+    <article class="data-card">
+      <header>
+        <div>
+          <h2>Power &amp; A/C KPI Overview</h2>
+          <p>{{ months[month - 1] }} {{ year }} · Complete {{ results.completeCount }} · Incomplete {{ results.incompleteCount }}
+            · Points {{ results.totalPointsAchieved ?? '—' }} / {{ results.totalMaximumPoints ?? '—' }}</p>
+        </div>
+      </header>
+      <div class="table-wrapper">
+        <table class="data-table overview-table ipnw-style-table">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>KPI</th>
+              <th>Target</th>
+              <th>Weightage</th>
+              <th *ngFor="let g of results.groups">{{ g.label }}<br><small>(Achievement %)</small></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let c of results.components; let i = index">
+              <td>{{ i + 1 }}</td>
+              <td class="kpi-name">{{ c.name }}</td>
+              <td>{{ c.targetPercent }}%</td>
+              <td>{{ c.weightPercent }}%</td>
+              <td *ngFor="let g of results.groups" class="achievement-cell">
+                {{ achievementText(g.achievement[c.code]) }}
+                <div *ngIf="c.code === 'PM'" class="approval-icon pm-approval"
+                     [ngClass]="isVerified(g.designation) ? 'approved' : 'unapproved'"
+                     [class.is-disabled]="!canVerify || busy"
+                     [title]="!canVerify ? 'Only users who can verify Power & A/C can change this.' : (isVerified(g.designation) ? 'Verified. Click to unverify.' : 'Not verified. Click to verify.')"
+                     (click)="canVerify && !busy && toggleVerified(g.designation)">
+                  <i class="bi bi-check" *ngIf="isVerified(g.designation)"></i>
+                  <i class="bi bi-x" *ngIf="!isVerified(g.designation)"></i>
+                </div>
+              </td>
+            </tr>
+            <tr class="emphasis-row">
+              <td></td>
+              <td class="kpi-name">Power &amp; A/C KPI (weighted)</td>
+              <td>100%</td>
+              <td>100%</td>
+              <td *ngFor="let g of results.groups" class="achievement-cell">{{ percent(g.composite) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <!-- 2. Middle table: Critical Safety, Corrective Action, Availability -->
+    <article class="data-card achievement-card">
+      <header>
+        <div>
+          <h2>Achievement % Input: Safety, Corrective and Availability</h2>
+          <p>
+            {{ months[month - 1] }} {{ year }} · Values entered here feed the overview above.
+            <button type="button" class="header-link" (click)="save()" [disabled]="busy || !canEdit || unsavedCount === 0">Save values ({{ unsavedCount }})</button>
+            <button type="button" class="header-link" *ngIf="canVerify" (click)="verify()" [disabled]="busy">Verify values</button>
+          </p>
+        </div>
+      </header>
+      <div class="table-wrapper">
+        <table class="data-table ipnw-style-table">
+          <thead>
+            <tr>
+              <th>KPI</th>
+              <th *ngFor="let r of rows">{{ r.label }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let c of otherComponents">
+              <td class="kpi-name">{{ c.name }}</td>
+              <td *ngFor="let r of rows" class="achievement-cell">
+                <input type="number" min="0" max="100" step="0.0001" class="form-control form-control-sm achievement-input"
+                       [disabled]="!canEdit"
+                       [value]="value(r.designation, c.code) ?? ''"
+                       (input)="setValue(r.designation, c.code, $any($event.target).value)">
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <!-- 3. Bottom table: Preventive Maintenance -->
+    <article class="data-card achievement-card">
+      <header>
+        <div>
+          <h2>Achievement % Input: Preventive Maintenance</h2>
+          <p>{{ months[month - 1] }} {{ year }} · The Preventive Maintenance Achievement % in the overview above comes from these values.</p>
+        </div>
+      </header>
+      <div class="table-wrapper">
+        <table class="data-table ipnw-style-table">
+          <thead>
+            <tr>
+              <th>KPI</th>
+              <th *ngFor="let r of rows">{{ r.label }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngIf="pmComponent">
+              <td class="kpi-name">{{ pmComponent.name }}</td>
+              <td *ngFor="let r of rows" class="achievement-cell">
+                <input type="number" min="0" max="100" step="0.0001" class="form-control form-control-sm achievement-input"
+                       [disabled]="!canEdit"
+                       [value]="value(r.designation, pmComponent?.code ?? 'PM') ?? ''"
+                       (input)="setValue(r.designation, pmComponent?.code ?? 'PM', $any($event.target).value)">
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <!-- 4. Monthly distribution vs achievement for the whole selected year -->
+    <article class="data-card achievement-card">
+      <header>
+        <div>
+          <h2>Monthly Distribution vs Achievement</h2>
+          <p>
+            {{ year }} · Distribution is the number scheduled, achievement is the number attended, per engineer group and month.
+          </p>
+        </div>
+      </header>
+      <div class="table-wrapper">
+        <table class="data-table ipnw-style-table">
+          <thead>
+            <tr>
+              <th rowspan="2">Month</th>
+              <th *ngFor="let r of rows" colspan="2">{{ r.label }}</th>
+            </tr>
+            <tr>
+              <ng-container *ngFor="let r of rows">
+                <th>Distribution</th>
+                <th>Achievement</th>
+              </ng-container>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let m of monthNumbers">
+              <td>{{ months[m - 1] }}</td>
+              <ng-container *ngFor="let r of rows">
+                <td class="achievement-cell">
+                  <input type="number" class="form-control form-control-sm achievement-input monthly-readonly"
+                         readonly
+                         [attr.aria-label]="months[m - 1] + ' distribution for ' + r.label"
+                         [value]="monthlyValue(m, r.designation, 'scheduled') ?? ''"
+                         tabindex="-1">
+                </td>
+                <td class="achievement-cell">
+                  <input type="number" class="form-control form-control-sm achievement-input monthly-readonly"
+                         readonly
+                         [attr.aria-label]="months[m - 1] + ' achievement for ' + r.label"
+                         [value]="monthlyValue(m, r.designation, 'attended') ?? ''"
+                         tabindex="-1">
+                  <button type="button" class="approval-icon"
+                       [ngClass]="monthlyVerified(m, r.designation) ? 'approved' : 'unapproved'"
+                       [class.is-disabled]="!canVerify || busy || !monthlyHasData(m, r.designation)"
+                       [disabled]="!canVerify || busy || !monthlyHasData(m, r.designation)"
+                       [attr.aria-label]="(monthlyVerified(m, r.designation) ? 'Unverify ' : 'Verify ') + months[m - 1] + ' achievement for ' + r.label"
+                       [title]="!monthlyHasData(m, r.designation) ? 'No database values to verify.' : (!canVerify ? 'Only users who can verify Power & A/C can change this.' : (monthlyVerified(m, r.designation) ? 'Verified. Click to unverify.' : 'Not verified. Click to verify.'))"
+                       (click)="toggleMonthlyVerified(m, r.designation)">
+                    <i class="bi bi-check" *ngIf="monthlyVerified(m, r.designation)" aria-hidden="true"></i>
+                    <i class="bi bi-x" *ngIf="!monthlyVerified(m, r.designation)" aria-hidden="true"></i>
+                  </button>
+                </td>
+              </ng-container>
+            </tr>
+            <tr class="emphasis-row">
+              <td>Year total</td>
+              <ng-container *ngFor="let r of rows">
+                <td><strong>{{ monthlyTotal(r.designation, 'scheduled') }}</strong></td>
+                <td><strong>{{ monthlyTotal(r.designation, 'attended') }}</strong></td>
+              </ng-container>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+  </ng-container>
+</div>

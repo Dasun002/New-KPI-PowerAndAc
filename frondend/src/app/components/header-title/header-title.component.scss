@@ -1,0 +1,18 @@
+:host {
+  display: inline-block;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+h1 {
+  margin: 0;
+  /* White text on blue header */
+  color: #FFFFFF;
+  font-size: 1.4rem;
+  font-weight: bold;
+  font-family: Arial, sans-serif;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+

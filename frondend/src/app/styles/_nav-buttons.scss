@@ -1,0 +1,61 @@
+// Reusable nav button mixin and tokens
+$nav-btn-radius: 6px;
+$nav-btn-padding-vertical: 0.65rem;
+$nav-btn-padding-horizontal: 1.25rem;
+$nav-btn-font-size: 0.9rem;
+
+@mixin nav-btn(
+  $bg: rgba(255,255,255,0.15),
+  $color: #fff,
+  $border-color: rgba(255,255,255,0.2),
+  $shadow: 0 2px 4px rgba(0,0,0,0.1)
+) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: $nav-btn-padding-vertical $nav-btn-padding-horizontal;
+  border-radius: $nav-btn-radius;
+  background: $bg;
+  border: 1px solid $border-color;
+  color: $color;
+  font-size: $nav-btn-font-size;
+  cursor: pointer;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  transition: all 0.25s ease;
+  box-shadow: $shadow;
+
+  &:hover,
+  &:focus-visible {
+    background: rgba(255,255,255,0.25);
+    border-color: rgba(255,255,255,0.4);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+  }
+
+  &.active,
+  &.open {
+    background: rgba(255,255,255,0.35);
+    border-color: rgba(255,255,255,0.45);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+    transform: translateY(-1px);
+  }
+}
+
+// Variant for logout (red)
+@mixin nav-btn-danger {
+  @include nav-btn(#dc3545, #fff, rgba(255,255,255,0.2), 0 2px 6px rgba(220,53,69,0.25));
+
+  &:hover,
+  &:focus-visible {
+    background: #c82333;
+    box-shadow: 0 6px 18px rgba(200,35,51,0.28);
+    transform: translateY(-1px);
+  }
+
+  &.active,
+  &.open {
+    background: #c82333;
+  }
+}

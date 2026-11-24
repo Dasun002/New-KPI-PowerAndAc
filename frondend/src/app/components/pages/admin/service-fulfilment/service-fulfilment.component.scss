@@ -1,0 +1,317 @@
+//@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+// Defines service fulfilment KPI cards, period fields, table rows, and form transitions.
+:host {
+  --accent-primary: #0057a6;
+  --accent-secondary: #02b28c;
+  --card-shadow: 0 18px 35px rgba(8, 50, 94, 0.12);
+  --card-border: rgba(255, 255, 255, 0.45);
+
+  display: block;
+  min-height: 100vh;
+  background-image: radial-gradient(circle at top, rgba(0, 87, 166, 0.35), transparent 1%),
+    url('/NW_KPI_Monitoring/assets/admin/SLT-Mobitel.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  position: relative;
+  font-family: Arial, sans-serif;
+}
+
+:host::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.308), rgba(245, 250, 255, 0.308));
+  backdrop-filter: blur(9px);
+  z-index: 0;
+}
+
+.page-container {
+  padding: 1.75rem clamp(1.25rem, 3vw, 3.5rem) 2.5rem;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+}
+
+.page-header {
+  padding: 1.5rem 0 1.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  position: relative;
+  margin-bottom: 2.5rem;
+  align-items: center;
+  text-align: center;
+}
+
+.page-header::after {
+  content: none;
+}
+
+.page-header h1 {
+  color: var(--accent-primary);
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin: 0.5rem 0;
+  letter-spacing: 0.3px;
+}
+
+.page-subtitle {
+  color: #0f1b2c;
+  font-size: 1rem;
+  margin: 0;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.dashboard-container {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* =========================
+   STATS CARDS
+   ========================= */
+.stats-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 18px;
+  padding: 1.4rem;
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--card-border);
+  display: flex;
+  align-items: center;
+}
+
+.stat-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  background: #f0f7ff;
+  color: var(--accent-primary);
+  display: grid;
+  place-items: center;
+  font-size: 1.8rem;
+  margin-right: 1rem;
+}
+
+.stat-value {
+  color: #0057A6;
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* =========================
+   UPDATED FORM STYLE (3-COLUMN GRID)
+   ========================= */
+.form-container {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 2.5rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
+  border: 1px solid #eef2f6;
+  margin-bottom: 3rem;
+}
+
+.form-header h2 {
+  color: #102136;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+}
+
+.form-header p {
+  color: #94a3b8;
+  margin-bottom: 2rem;
+}
+
+.kpi-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* 3 Columns like the image */
+  gap: 1.25rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group.full-width {
+  grid-column: span 3;
+}
+
+.form-group.span-2 {
+  grid-column: span 2;
+}
+
+.form-group label {
+  color: #334155;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.form-group input,
+.form-group textarea {
+  padding: 0.85rem 1rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  background: #f8fafc;
+  color: #102136;
+  transition: all 0.2s ease;
+}
+
+
+
+.form-group textarea {
+  min-height: 92px;
+  resize: none;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  background: #ffffff;
+  box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+.error-message {
+  color: #dc3545;
+  font-size: 0.8rem;
+  margin-top: 0.3rem;
+}
+
+/* =========================
+   FORM ACTIONS
+   ========================= */
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 1.5rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.btn-cancel, .btn-close-form {
+  padding: 0.8rem 1.8rem;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #e2e8f0;
+  background: white;
+  color: #64748b;
+}
+
+.btn-submit {
+  padding: 0.8rem 2.2rem;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  background: linear-gradient(135deg, var(--accent-primary), #0078d4);
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 87, 166, 0.2);
+}
+@font-face {
+  font-family: Arial, sans-serif;
+  src: url('/assets/fonts/SpaceGrotesk/SpaceGrotesk-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: Arial, sans-serif;
+  src: url('/assets/fonts/SpaceGrotesk/SpaceGrotesk-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: Arial, sans-serif;
+  src: url('/assets/fonts/SpaceGrotesk/SpaceGrotesk-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+
+/* =========================
+   TABLE SECTION (ORIGINAL)
+   ========================= */
+.table-responsive {
+  overflow-x: auto;
+  border-radius: 18px;
+  box-shadow: var(--card-shadow);
+}
+
+.kpi-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+.kpi-table thead {
+  background: #0057A6;
+}
+
+.kpi-table th {
+  color: white;
+  padding: 1rem;
+  text-align: left;
+  font-size: 0.9rem;
+  border-right: 1px solid rgba(255, 255, 255, 0.85);
+}
+
+.kpi-table th:last-child {
+  border-right: none;
+}
+
+.kpi-table thead th {
+  background-clip: padding-box;
+}
+
+.kpi-table thead tr:first-child th:first-child {
+  border-top-left-radius: 12px;
+}
+
+.kpi-table thead tr:first-child th:last-child {
+  border-top-right-radius: 12px;
+}
+
+.kpi-table td {
+  padding: 1rem;
+  border-bottom: 1px solid #eee;
+}
+
+.platform-badge {
+  padding: 0.25rem 0.75rem;
+  background: #e3f2fd;
+  color: #0057A6;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.btn-edit { background: #28a745; color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; margin-right: 5px; }
+.btn-delete { background: #dc3545; color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; }
