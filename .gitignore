@@ -38,3 +38,6 @@ backend/*.user
 /temp/
 **/tmp/
 **/temp/
+
+# Local developer configuration
+.claude/
