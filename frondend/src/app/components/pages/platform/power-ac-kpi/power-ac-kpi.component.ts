@@ -52,9 +52,8 @@ export class PowerAcKpiComponent implements OnInit {
   private draft = new Map<string, Record<string, number | null>>();
   private dirty = new Set<string>();
 
-  // Monthly distribution and achievement counts for the whole selected year, keyed by "month|designation".
+  // Read-only monthly distribution and achievement counts, keyed by "month|designation".
   monthly = new Map<string, MonthlyEntry>();
-  private monthlyDirty = new Set<string>();
   readonly monthNumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
   constructor(
@@ -64,10 +63,12 @@ export class PowerAcKpiComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    const role = (this.auth.getRole() ?? '').replace(/\s+/g, '').toLowerCase();
-    const pageEditor = this.auth.canEditPage('Power & A/C');
-    this.canEdit = role === 'admin' || role === 'superadmin' || pageEditor;
-    this.canVerify = role === 'superadmin' || pageEditor;
+    const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const isAssignedPlatformAdmin =
+      normalize(this.auth.getRole() ?? '') === 'platformadmin' &&
+      this.auth.getAssignedPages().some(page => normalize(page) === 'powerac');
+    this.canEdit = isAssignedPlatformAdmin;
+    this.canVerify = isAssignedPlatformAdmin;
     this.load();
   }
 
@@ -100,7 +101,6 @@ export class PowerAcKpiComponent implements OnInit {
         this.dirty.clear();
         for (const r of rows) this.draft.set(r.designation, { ...r.achievements });
         this.monthly.clear();
-        this.monthlyDirty.clear();
         for (const c of monthly) this.monthly.set(this.monthlyKey(c.month, c.designation), { scheduled: c.scheduled, attended: c.attended, hasRow: c.hasRow, isVerified: c.isVerified });
         this.loading = false;
         this.cdr.detectChanges();
@@ -134,6 +134,7 @@ export class PowerAcKpiComponent implements OnInit {
   }
 
   save(): void {
+    if (!this.canEdit || this.busy) return;
     const items: PowerAcSaveItem[] = [];
     for (const designation of this.dirty) {
       const entry = this.draft.get(designation);
@@ -167,6 +168,7 @@ export class PowerAcKpiComponent implements OnInit {
   }
 
   verify(): void {
+    if (!this.canVerify || this.busy) return;
     this.busy = true;
     this.error = '';
     this.api.verify(this.year, this.month).subscribe({
@@ -183,17 +185,9 @@ export class PowerAcKpiComponent implements OnInit {
     return this.monthly.get(this.monthlyKey(month, designation))?.[field] ?? null;
   }
 
-  setMonthly(month: number, designation: string, field: MonthlyField, raw: string): void {
-    const key = this.monthlyKey(month, designation);
-    const entry = this.monthly.get(key) ?? { scheduled: null, attended: null, hasRow: false, isVerified: false };
-    const trimmed = raw.trim();
-    entry[field] = trimmed === '' ? null : Number(trimmed);
-    this.monthly.set(key, entry);
-    this.monthlyDirty.add(key);
-  }
-
-  monthlyHasRow(month: number, designation: string): boolean {
-    return this.monthly.get(this.monthlyKey(month, designation))?.hasRow ?? false;
+  monthlyHasData(month: number, designation: string): boolean {
+    const entry = this.monthly.get(this.monthlyKey(month, designation));
+    return entry?.hasRow === true && (entry.scheduled !== null || entry.attended !== null);
   }
 
   monthlyVerified(month: number, designation: string): boolean {
@@ -202,6 +196,7 @@ export class PowerAcKpiComponent implements OnInit {
 
   // Toggles verification of one engineer group for one month. Same rule as the Preventive Maintenance ✓/✗.
   toggleMonthlyVerified(month: number, designation: string): void {
+    if (!this.canVerify || this.busy) return;
     this.busy = true;
     this.error = '';
     this.api.toggleVerified(this.year, month, designation).subscribe({
@@ -220,54 +215,11 @@ export class PowerAcKpiComponent implements OnInit {
     });
   }
 
-  get monthlyDirtyCount(): number {
-    return this.monthlyDirty.size;
-  }
-
   // Year total for one engineer group (sum of the months that have a value).
   monthlyTotal(designation: string, field: MonthlyField): number {
     let total = 0;
     for (const month of this.monthNumbers) total += this.monthlyValue(month, designation, field) ?? 0;
     return total;
-  }
-
-  saveMonthly(): void {
-    const items: PowerAcMonthlyCell[] = [];
-    for (const key of this.monthlyDirty) {
-      const [monthText, designation] = key.split('|');
-      const entry = this.monthly.get(key);
-      if (!entry) continue;
-      for (const v of [entry.scheduled, entry.attended]) {
-        if (v !== null && (!Number.isInteger(v) || v < 0)) {
-          this.error = 'Distribution and achievement must be whole numbers, 0 or more.';
-          this.cdr.detectChanges();
-          return;
-        }
-      }
-      items.push({
-        month: Number(monthText),
-        designation,
-        scheduled: entry.scheduled,
-        attended: entry.attended,
-        hasRow: entry.hasRow,
-        isVerified: entry.isVerified
-      });
-    }
-    if (items.length === 0) {
-      this.message = 'Nothing to save.';
-      this.cdr.detectChanges();
-      return;
-    }
-    this.busy = true;
-    this.error = '';
-    this.api.saveMonthly(this.year, items).subscribe({
-      next: r => {
-        this.busy = false;
-        this.message = `${r.saved} monthly value(s) saved for ${this.year}.`;
-        this.load();
-      },
-      error: err => { this.busy = false; this.fail(err, 'save the monthly values'); }
-    });
   }
 
   isVerified(designation: string): boolean {
@@ -276,6 +228,7 @@ export class PowerAcKpiComponent implements OnInit {
 
   // Toggles verification of one engineer group's row (the ✓/✗ on the Preventive Maintenance row).
   toggleVerified(designation: string): void {
+    if (!this.canVerify || this.busy) return;
     this.busy = true;
     this.error = '';
     this.api.toggleVerified(this.year, this.month, designation).subscribe({

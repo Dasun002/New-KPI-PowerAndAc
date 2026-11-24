@@ -286,6 +286,12 @@ export class TmActivityPlanComponent implements OnInit {
     return entry.details.find(item => item.Column1 === header);
   }
 
+  toggleMainTableVerified(rowIndex: number, colIndex: number): void {
+    if (!this.canEditMetrics) return;
+    const detail = this.getMainTableDetail(rowIndex, colIndex);
+    if (detail) this.toggleDetailVerified(detail);
+  }
+
   trackByHeader = (_: number, header: string) => header;
   trackByMonth = (_: number, record: ProcessedRecord) => record.month;
 

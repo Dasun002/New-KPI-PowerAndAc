@@ -5,8 +5,8 @@
  *   PUT  api/power-ac/data                  save Achievement % and allocation (clears verification)
  *   POST api/power-ac/data/verify?year&month verify rows entered by someone else
  *   GET  api/power-ac/results?year&month    calculated results (rules in PowerAcCalculator)
- * Page 11 (Power & A/C) rights: view = ViewPagePolicy, edit = EditPlatformKpiPolicy or Admin/SuperAdmin,
- * verify = SuperAdmin or EditPlatformKpiPolicy, never the person who entered the row.
+ * Page 11 (Power & A/C) rights: view = ViewPagePolicy; edit and verify require an explicit
+ * Power & A/C platform assignment, never the person who entered the row.
  */
 using System.Security.Claims;
 using backend.Data;
@@ -71,12 +71,6 @@ namespace backend.Controllers
             // True when the month has a row for this group (verification can only be set on such a row).
             public bool HasRow { get; set; }
             public bool IsVerified { get; set; }
-        }
-
-        public class SaveMonthlyDto
-        {
-            public int Year { get; set; }
-            public List<MonthlyCellDto> Items { get; set; } = new();
         }
 
         [HttpGet("data")]
@@ -185,51 +179,6 @@ namespace backend.Controllers
             return Ok(cells);
         }
 
-        // Saves only the monthly distribution and achievement counts. Achievement %, allocation and verification are not changed.
-        [HttpPut("data/monthly")]
-        public async Task<IActionResult> SaveMonthly([FromBody] SaveMonthlyDto dto)
-        {
-            if (!await CanEditAsync()) return Forbid();
-            var known = PowerAcConfig.Groups.Select(g => g.Designation).ToHashSet();
-            foreach (var i in dto.Items)
-            {
-                if (i.Month < 1 || i.Month > 12) return BadRequest(new { message = "month must be between 1 and 12." });
-                if (!known.Contains(i.Designation.Trim())) return BadRequest(new { message = $"Unknown engineer group: {i.Designation}." });
-                if (i.Scheduled is < 0 || i.Attended is < 0) return BadRequest(new { message = "Distribution and achievement cannot be negative." });
-            }
-
-            var user = CurrentUser();
-            var now = DateTime.UtcNow;
-            var year = dto.Year.ToString();
-            var existing = await _db.PowerAcPmData.Where(r => r.Year == year).ToListAsync();
-
-            foreach (var item in dto.Items)
-            {
-                var monthName = PowerAcConfig.MonthNames[item.Month - 1];
-                var designation = item.Designation.Trim();
-                var row = existing.FirstOrDefault(r => r.Month == monthName && r.Designation.Trim() == designation);
-                if (row is null)
-                {
-                    row = new PowerAcPmData
-                    {
-                        Designation = designation,
-                        Year = year,
-                        Month = monthName,
-                        Cumulative_Sched = 0,
-                        Cumulative_Achieved = 0,
-                        EnteredBy = user,
-                    };
-                    _db.PowerAcPmData.Add(row);
-                    existing.Add(row);
-                }
-                row.Scheduled = item.Scheduled;
-                row.Attended = item.Attended;
-                row.UpdatedAt = now;
-            }
-            await _db.SaveChangesAsync();
-            return Ok(new { message = "Monthly distribution and achievement saved.", saved = dto.Items.Count });
-        }
-
         [HttpPost("data/verify")]
         public async Task<IActionResult> Verify([FromQuery] int year, [FromQuery] int month)
         {
@@ -269,6 +218,8 @@ namespace backend.Controllers
             var user = CurrentUser();
             if (!row.IsVerified)
             {
+                if (row.Scheduled is null && row.Attended is null)
+                    return Conflict(new { message = "No monthly distribution or achievement data is available to verify." });
                 if (string.Equals(row.EnteredBy, user, StringComparison.OrdinalIgnoreCase))
                     return Conflict(new { message = "You cannot verify values you entered." });
                 row.IsVerified = true;
@@ -354,11 +305,13 @@ namespace backend.Controllers
         private async Task<bool> CanViewAsync() =>
             (await _authorization.AuthorizeAsync(User, PageId, "ViewPagePolicy")).Succeeded;
 
-        private async Task<bool> CanEditAsync() =>
-            HasRole(User, "Admin") || HasRole(User, "SuperAdmin")
-            || (await _authorization.AuthorizeAsync(User, PageId, "EditPlatformKpiPolicy")).Succeeded;
+        private Task<bool> CanEditAsync() => Task.FromResult(HasPowerAcAssignment());
 
-        private async Task<bool> CanVerifyAsync() =>
-            HasRole(User, "SuperAdmin") || (await _authorization.AuthorizeAsync(User, PageId, "EditPlatformKpiPolicy")).Succeeded;
+        private Task<bool> CanVerifyAsync() => Task.FromResult(HasPowerAcAssignment());
+
+        private bool HasPowerAcAssignment() =>
+            HasRole(User, "PlatformAdmin") &&
+            User.FindAll("assignedKpiPages").Any(claim =>
+                int.TryParse(claim.Value, out var assignedPageId) && assignedPageId == PageId);
     }
 }

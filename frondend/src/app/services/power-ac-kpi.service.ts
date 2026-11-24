@@ -112,10 +112,6 @@ export class PowerAcKpiService {
     return this.http.get<PowerAcMonthlyCell[]>(`${this.base}/data/monthly`, { params: { year } });
   }
 
-  saveMonthly(year: number, items: PowerAcMonthlyCell[]): Observable<{ saved: number; message: string }> {
-    return this.http.put<{ saved: number; message: string }>(`${this.base}/data/monthly`, { year, items });
-  }
-
   toggleVerified(year: number, month: number, designation: string): Observable<{ designation: string; isVerified: boolean }> {
     return this.http.patch<{ designation: string; isVerified: boolean }>(`${this.base}/data/toggle-verified`, {}, { params: { year, month, designation } });
   }

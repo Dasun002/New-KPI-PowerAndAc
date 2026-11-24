@@ -69,7 +69,9 @@
                     <div class="approval-icon"
                          *ngIf="getMainTableDetailId(rowIndex, colIndex) !== undefined"
                          [ngClass]="getMainTableIsVerified(rowIndex, colIndex) ? 'approved' : 'unapproved'"
-                         title="Verification status">
+                         [class.is-disabled]="!canEditMetrics"
+                         [title]="canEditMetrics ? 'Click to toggle verification' : 'Verification status'"
+                         (click)="toggleMainTableVerified(rowIndex, colIndex)">
                       <i class="bi bi-check" *ngIf="getMainTableIsVerified(rowIndex, colIndex)"></i>
                       <i class="bi bi-x" *ngIf="!getMainTableIsVerified(rowIndex, colIndex)"></i>
                     </div>
@@ -129,6 +131,7 @@
                       <div class="approval-icon"
                            *ngIf="getDetailId(entry, header)"
                            [ngClass]="getIsVerified(entry, header) ? 'approved' : 'unapproved'"
+                           [class.is-disabled]="!canEditMetrics"
                            (click)="toggleVerified(entry, header)"
                            [title]="canEditMetrics ? 'Click to toggle approval' : 'Verification status'">
                         <i class="bi bi-check" *ngIf="getIsVerified(entry, header)"></i>

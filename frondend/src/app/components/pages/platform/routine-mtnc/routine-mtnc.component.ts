@@ -477,6 +477,12 @@ export class RoutineMtncComponent implements OnInit {
     return entry ? this.getIsVerified(entry, column) : false;
   }
 
+  toggleMainTableVerified(platformKey: PlatformKey | null, column: string): void {
+    if (!this.canEditMetrics || !platformKey) return;
+    const entry = this.getTargetEntryForMainTable(platformKey);
+    if (entry) this.toggleVerified(platformKey, entry, column);
+  }
+
   // Applies cumulative percentages mapping over the respective columns.
   private applyCumulativePercentage(result: PlaceholderMap, entry: PlatformRecord): void {
     PLATFORM_COLUMNS.forEach(column => {

@@ -75,7 +75,9 @@
                   <div class="approval-icon" 
                        *ngIf="hasDetailForMainTable(row.platformKey, column)"
                        [ngClass]="isVerifiedForMainTable(row.platformKey, column) ? 'approved' : 'unapproved'"
-                       title="Verification status">
+                       [class.is-disabled]="!canEditMetrics"
+                       [title]="canEditMetrics ? 'Click to toggle verification' : 'Verification status'"
+                       (click)="toggleMainTableVerified(row.platformKey, column)">
                     <i class="bi bi-check" *ngIf="isVerifiedForMainTable(row.platformKey, column)"></i>
                     <i class="bi bi-x" *ngIf="!isVerifiedForMainTable(row.platformKey, column)"></i>
                   </div>
@@ -129,6 +131,7 @@
                     <div class="approval-icon"
                          *ngIf="getDetailId(record, column)"
                          [ngClass]="getIsVerified(record, column) ? 'approved' : 'unapproved'"
+                         [class.is-disabled]="!canEditMetrics"
                          (click)="toggleVerified(config.key, record, column)"
                          [title]="canEditMetrics ? 'Click to toggle approval' : 'Verification status'">
                       <i class="bi bi-check" *ngIf="getIsVerified(record, column)"></i>

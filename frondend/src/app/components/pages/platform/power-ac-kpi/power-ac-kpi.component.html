@@ -1,7 +1,7 @@
 <div class="page-container">
   <div class="page-header">
     <div class="header-info">
-      <h1>Power &amp; A/C KPI</h1>
+      <h1>Power &amp; AC</h1>
       <p class="page-subtitle">Preventive Maintenance, Critical Safety, Corrective Action and Power System Availability across network areas.</p>
     </div>
     <form (submit)="$event.preventDefault()" class="filters-form pac-filters">
@@ -155,7 +155,6 @@
           <h2>Monthly Distribution vs Achievement</h2>
           <p>
             {{ year }} · Distribution is the number scheduled, achievement is the number attended, per engineer group and month.
-            <button type="button" class="header-link" (click)="saveMonthly()" [disabled]="busy || !canEdit || monthlyDirtyCount === 0">Save monthly values ({{ monthlyDirtyCount }})</button>
           </p>
         </div>
       </header>
@@ -178,24 +177,28 @@
               <td>{{ months[m - 1] }}</td>
               <ng-container *ngFor="let r of rows">
                 <td class="achievement-cell">
-                  <input type="number" min="0" step="1" class="form-control form-control-sm achievement-input"
-                         [disabled]="!canEdit"
+                  <input type="number" class="form-control form-control-sm achievement-input monthly-readonly"
+                         readonly
+                         [attr.aria-label]="months[m - 1] + ' distribution for ' + r.label"
                          [value]="monthlyValue(m, r.designation, 'scheduled') ?? ''"
-                         (input)="setMonthly(m, r.designation, 'scheduled', $any($event.target).value)">
+                         tabindex="-1">
                 </td>
                 <td class="achievement-cell">
-                  <input type="number" min="0" step="1" class="form-control form-control-sm achievement-input"
-                         [disabled]="!canEdit"
+                  <input type="number" class="form-control form-control-sm achievement-input monthly-readonly"
+                         readonly
+                         [attr.aria-label]="months[m - 1] + ' achievement for ' + r.label"
                          [value]="monthlyValue(m, r.designation, 'attended') ?? ''"
-                         (input)="setMonthly(m, r.designation, 'attended', $any($event.target).value)">
-                  <div *ngIf="monthlyHasRow(m, r.designation)" class="approval-icon"
+                         tabindex="-1">
+                  <button type="button" class="approval-icon"
                        [ngClass]="monthlyVerified(m, r.designation) ? 'approved' : 'unapproved'"
-                       [class.is-disabled]="!canVerify || busy"
-                       [title]="!canVerify ? 'Only users who can verify Power & A/C can change this.' : (monthlyVerified(m, r.designation) ? 'Verified. Click to unverify.' : 'Not verified. Click to verify.')"
-                       (click)="canVerify && !busy && toggleMonthlyVerified(m, r.designation)">
-                    <i class="bi bi-check" *ngIf="monthlyVerified(m, r.designation)"></i>
-                    <i class="bi bi-x" *ngIf="!monthlyVerified(m, r.designation)"></i>
-                  </div>
+                       [class.is-disabled]="!canVerify || busy || !monthlyHasData(m, r.designation)"
+                       [disabled]="!canVerify || busy || !monthlyHasData(m, r.designation)"
+                       [attr.aria-label]="(monthlyVerified(m, r.designation) ? 'Unverify ' : 'Verify ') + months[m - 1] + ' achievement for ' + r.label"
+                       [title]="!monthlyHasData(m, r.designation) ? 'No database values to verify.' : (!canVerify ? 'Only users who can verify Power & A/C can change this.' : (monthlyVerified(m, r.designation) ? 'Verified. Click to unverify.' : 'Not verified. Click to verify.'))"
+                       (click)="toggleMonthlyVerified(m, r.designation)">
+                    <i class="bi bi-check" *ngIf="monthlyVerified(m, r.designation)" aria-hidden="true"></i>
+                    <i class="bi bi-x" *ngIf="!monthlyVerified(m, r.designation)" aria-hidden="true"></i>
+                  </button>
                 </td>
               </ng-container>
             </tr>

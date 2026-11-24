@@ -130,6 +130,11 @@
   }
 }
 
+.approval-icon.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .table-section {
   position: relative;
   z-index: 1;

@@ -70,7 +70,7 @@ export const platformNavOptions: NavOption[] = [
     title: 'Platform KPI — Routine Maintenance'
   },
   {
-    label: 'Power & A/C KPI',
+    label: 'Power & AC',
     path: 'platform/power-ac-kpi',
     title: 'Platform KPI — Power & A/C KPI'
   },
@@ -146,7 +146,7 @@ export const adminNavOptions: NavOption[] = [
     title: 'Admin — Routine Maintenance'
   },
   {
-    label: 'Power & A/C KPI Config',
+    label: 'Power & AC',
     path: 'admin/power-ac-config',
     title: 'Admin — Power & A/C KPI Configuration'
   },
