@@ -41,6 +41,7 @@ describe('PowerAcKpiComponent', () => {
     expect(fixture.componentInstance.canVerify).toBe(true);
   });
 
+<<<<<<< Updated upstream
   it('disables editing and verification when the user has no Power & AC assignment', () => {
     auth.assignedPages = [];
     fixture.componentInstance.ngOnInit();
@@ -49,6 +50,8 @@ describe('PowerAcKpiComponent', () => {
     expect(fixture.componentInstance.canVerify).toBe(false);
   });
 
+=======
+>>>>>>> Stashed changes
   it('updates the monthly achievement verification state when toggled', () => {
     const component = fixture.componentInstance;
     component.monthly.set('1|NW/CPN', {
