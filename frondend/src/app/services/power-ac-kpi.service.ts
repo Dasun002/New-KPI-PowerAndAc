@@ -63,6 +63,10 @@ export interface PowerAcSaveItem {
   areaAllocation: number | null;
 }
 
+export interface PowerAcDataPermissions {
+  canEditPreventiveMaintenance: boolean;
+}
+
 // Monthly distribution (scheduled) and achievement (attended) counts for one engineer group and month.
 export interface PowerAcMonthlyCell {
   month: number;
@@ -128,6 +132,10 @@ export class PowerAcKpiService {
 
   getData(year: number, month: number): Observable<PowerAcDataRow[]> {
     return this.http.get<PowerAcDataRow[]>(`${this.base}/data`, { params: { year, month } });
+  }
+
+  getDataPermissions(): Observable<PowerAcDataPermissions> {
+    return this.http.get<PowerAcDataPermissions>(`${this.base}/data/permissions`);
   }
 
   saveData(year: number, month: number, items: PowerAcSaveItem[]): Observable<{ saved: number; message: string }> {

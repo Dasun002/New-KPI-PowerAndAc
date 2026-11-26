@@ -129,8 +129,14 @@ export class UserRegistrationComponent implements OnInit {
       return;
     }
 
-    if (!this.formData.serviceId.trim()) {
+    const serviceId = this.formData.serviceId.trim();
+    if (!serviceId) {
       this.error = 'Service ID is required';
+      return;
+    }
+
+    if (!/^[0-9]{6}$/.test(serviceId)) {
+      this.error = 'Service ID must be exactly 6 digits.';
       return;
     }
 
@@ -138,7 +144,7 @@ export class UserRegistrationComponent implements OnInit {
 
     if (this.editingUser) {
       const updateData: UpdateUserDto = {
-        serviceId: this.formData.serviceId,
+        serviceId,
         name: this.formData.name,
         role: this.formData.role,
         isActive: this.formData.isActive,
@@ -165,6 +171,7 @@ export class UserRegistrationComponent implements OnInit {
     } else {
       const createData: CreateUserDto = {
         ...this.formData,
+        serviceId,
         pageIds: this.formData.pageIds,
         pages: this.formData.pages
       };
@@ -276,7 +283,7 @@ export class UserRegistrationComponent implements OnInit {
   fillBasicTestData() {
     // Populate minimal local test values without sending a request to the backend.
     this.formData.name = 'Test User';
-    this.formData.serviceId = (10000 + this.users.length).toString();
+    this.formData.serviceId = (10000 + this.users.length).toString().padStart(6, '0');
     this.formData.pageIds = this.availablePages.length ? [this.availablePages[0].pageId] : [];
     this.syncSelectedPageNames();
   }

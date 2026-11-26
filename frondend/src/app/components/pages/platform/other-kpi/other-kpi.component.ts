@@ -41,7 +41,7 @@ interface AreaRow {
   styleUrls: ['./other-kpi.component.scss']
 })
 export class OtherKpiComponent implements OnInit {
-  pageTitle = 'Other KPI';
+  pageTitle = 'Telemetry Devices Availability';
 
   // ── Telemetry filter state ──
   telMonth: number = new Date().getMonth() + 1;

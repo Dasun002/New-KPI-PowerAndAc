@@ -35,9 +35,10 @@
 
             <!-- Service Number Input -->
             <div class="mb-3">
-              <label for="serviceId" class="form-label fw-semibold">Service ID (e.g. 12345)</label>
+              <label for="serviceId" class="form-label fw-semibold">Service ID (6 digits)</label>
               <input type="text" id="serviceId" name="serviceId" class="form-control" [(ngModel)]="formData.serviceId"
-                placeholder="Enter service ID" required [disabled]="isLoading" />
+                placeholder="Enter 6-digit service ID" inputmode="numeric" maxlength="6" pattern="[0-9]{6}"
+                title="Enter exactly 6 digits." required [disabled]="isLoading" />
             </div>
 
             <!-- Assign Pages Section -->

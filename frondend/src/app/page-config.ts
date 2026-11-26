@@ -40,9 +40,9 @@ export const platformNavOptions: NavOption[] = [
   },
   {
     /* Removed: Other Operator KPI */
-    label: 'Other KPI',
+    label: 'Telemetry Devices Availability',
     path: 'platform/other-kpi',
-    title: 'Platform KPI — Other KPI'
+    title: 'Platform KPI — Telemetry Devices Availability'
   },
   {
     label: 'IP NW OP',
@@ -166,9 +166,9 @@ export const adminNavOptions: NavOption[] = [
     title: 'Admin — Enterprise KPI'
   },
   {
-    label: 'Other KPI',
+    label: 'Telemetry Devices Availability',
     path: 'admin/other-kpi',
-    title: 'Admin — Other KPI'
+    title: 'Admin — Telemetry Devices Availability'
   }
 ];
 

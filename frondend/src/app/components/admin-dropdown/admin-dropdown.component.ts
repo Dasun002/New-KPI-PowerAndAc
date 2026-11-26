@@ -66,7 +66,7 @@ export class AdminDropdownComponent implements OnChanges {
     'OTN OP 1',
     'OTN OP 2',
     'Enterprise KPI',
-    'Other KPI'
+    'Telemetry Devices Availability'
   ]);
 
   private readonly authService = inject(AuthService);

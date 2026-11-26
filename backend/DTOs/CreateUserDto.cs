@@ -15,6 +15,7 @@ namespace backend.DTOs
     {
         // Service ID of the user (required)
         [Required]
+        [RegularExpression("^[0-9]{6}$", ErrorMessage = "Service ID must be exactly 6 digits.")]
         public string ServiceId { get; set; } = string.Empty;
         
         // Full name of the user (required)

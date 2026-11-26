@@ -8,7 +8,7 @@
  *   PATCH api/power-ac/data/toggle-verified  verify one group (all required values must be present) or remove verification
  *   GET  api/power-ac/results?year&month    calculated results (rules in PowerAcCalculator)
  * Page 11 (Power & A/C) rights: view = ViewPagePolicy; edit and verify require an explicit
- * Power & A/C platform assignment. Assigned users may verify their own entries.
+ * Power & A/C platform assignment, except Service ID 012264 may edit Preventive Maintenance only.
  */
 using System.Security.Claims;
 using backend.Data;
@@ -95,6 +95,8 @@ namespace backend.Controllers
             public List<SaveItemDto> Items { get; set; } = new();
         }
 
+        private const string PreventiveMaintenanceEditorServiceId = "012264";
+
         public class MonthlyCellDto
         {
             public int Month { get; set; }
@@ -150,15 +152,79 @@ namespace backend.Controllers
             (r.PmAchievement, r.SafetyAchievement, r.CorrectiveAchievement, r.AvailabilityAchievement,
              r.AchievementsJson, r.SafetyIncidentCount, r.AvailabilityActualPct, r.AreaAllocation);
 
+        [HttpGet("data/permissions")]
+        public async Task<IActionResult> GetDataPermissions()
+        {
+            if (!await CanViewAsync()) return Forbid();
+            return Ok(new { canEditPreventiveMaintenance = IsYamunaPmEditor() });
+        }
+
         [HttpPut("data")]
         public async Task<IActionResult> SaveData([FromBody] SaveDataDto dto)
         {
-            if (!await CanEditAsync()) return Forbid();
+            var isYamunaPmEditor = IsYamunaPmEditor();
+            if (!await CanEditAsync() && !isYamunaPmEditor) return Forbid();
             if (dto is null) return BadRequest(new { message = "The request body is required." });
             if (dto.Month < 1 || dto.Month > 12) return BadRequest(new { message = "month must be between 1 and 12." });
             var known = PowerAcConfig.Groups.Select(g => g.Designation).ToHashSet();
             var unknown = dto.Items.Where(i => !known.Contains(i.Designation.Trim())).Select(i => i.Designation).ToList();
             if (unknown.Count > 0) return BadRequest(new { message = $"Unknown engineer groups: {string.Join(", ", unknown)}." });
+
+            if (isYamunaPmEditor)
+            {
+                foreach (var item in dto.Items)
+                {
+                    var achievements = item.Achievements ?? new Dictionary<string, decimal?>();
+                    var inputs = item.Inputs ?? new Dictionary<string, decimal?>();
+                    if (item.AreaAllocation is not null ||
+                        achievements.Count != 1 ||
+                        !achievements.ContainsKey("PM") ||
+                        inputs.Count != 0)
+                    {
+                        return Forbid();
+                    }
+
+                    var achievement = achievements["PM"];
+                    if (achievement is < 0m or > 100m)
+                        return BadRequest(new { message = "Achievement % must be between 0 and 100." });
+                }
+
+                var pmEditor = CurrentUser();
+                var pmUpdatedAt = DateTime.UtcNow;
+                var pmYear = dto.Year.ToString();
+                var pmMonthName = PowerAcConfig.MonthNames[dto.Month - 1];
+                var existingPmRows = await _db.PowerAcPmData
+                    .Where(r => r.Year == pmYear && r.Month == pmMonthName)
+                    .ToListAsync();
+
+                foreach (var item in dto.Items)
+                {
+                    var row = existingPmRows.FirstOrDefault(r => r.Designation.Trim() == item.Designation.Trim());
+                    if (row is null)
+                    {
+                        row = new PowerAcPmData
+                        {
+                            Designation = item.Designation.Trim(),
+                            Year = pmYear,
+                            Month = pmMonthName,
+                            Cumulative_Sched = 0,
+                            Cumulative_Achieved = 0,
+                            EnteredBy = pmEditor,
+                        };
+                        _db.PowerAcPmData.Add(row);
+                    }
+
+                    row.PmAchievement = item.Achievements["PM"];
+                    row.IsVerified = false;
+                    row.VerifiedBy = null;
+                    row.EnteredBy = pmEditor;
+                    row.UpdatedAt = pmUpdatedAt;
+                }
+
+                await _db.SaveChangesAsync();
+                return Ok(new { message = "Preventive Maintenance values saved.", saved = dto.Items.Count });
+            }
+
             var codes = (await LoadComponentsAsync()).Select(c => c.Code).ToHashSet();
 
             foreach (var i in dto.Items)
@@ -502,6 +568,10 @@ namespace backend.Controllers
         private Task<bool> CanEditAsync() => Task.FromResult(HasPowerAcAssignment());
 
         private Task<bool> CanVerifyAsync() => Task.FromResult(HasPowerAcAssignment());
+
+        private bool IsYamunaPmEditor() =>
+            HasRole(User, "SuperAdmin") &&
+            string.Equals(CurrentUser().Trim(), PreventiveMaintenanceEditorServiceId, StringComparison.Ordinal);
 
         private bool HasPowerAcAssignment() =>
             HasRole(User, "PlatformAdmin") &&

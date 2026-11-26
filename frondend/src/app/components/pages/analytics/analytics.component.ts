@@ -499,7 +499,7 @@ return {
               isActive: true,
               name: c.name,
               targetValue: c.targetPercent,
-              targetUnit: '%',
+              targetUnit: c.code === 'SAFETY' ? '' : '%',
               currentWeightPercent: c.weightPercent
             }));
             // Power & A/C KPI rows (Category PowerAndAC) are shown only through the components below.
@@ -515,7 +515,9 @@ return {
                   id: -component.id,
                   category: 'Power & AC',
                   keyPerformanceIndicators: component.name,
-                  descriptionOfKPI: `${component.targetValue} ${component.targetUnit}`,
+                  descriptionOfKPI: component.targetUnit
+                    ? `${component.targetValue} ${component.targetUnit}`
+                    : `${component.targetValue}`,
                   weightage: component.currentWeightPercent ?? 0,
                   pointsApplicable: Math.round((row.pointsApplicable * (component.currentWeightPercent ?? 0)) / totalWeight)
                 })));

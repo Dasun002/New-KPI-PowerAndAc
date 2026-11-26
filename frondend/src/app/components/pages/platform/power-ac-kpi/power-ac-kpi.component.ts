@@ -55,6 +55,7 @@ export class PowerAcKpiComponent implements OnInit {
   message = '';
   error = '';
   canEdit = false;
+  canEditPm = false;
   canVerify = false;
 
   // Edited values per engineer group (designation) and KPI code, and the groups with unsaved edits.
@@ -106,12 +107,14 @@ export class PowerAcKpiComponent implements OnInit {
       results: this.api.getResults(this.year, this.month),
       monthly: this.api.getMonthly(this.year),
       // The overall status is informational. If it cannot be loaded, the page still works.
-      status: this.api.getOverallStatus(this.year).pipe(catchError(() => of(null)))
+      status: this.api.getOverallStatus(this.year).pipe(catchError(() => of(null))),
+      permissions: this.api.getDataPermissions()
     }).subscribe({
-      next: ({ rows, results, monthly, status }) => {
+      next: ({ rows, results, monthly, status, permissions }) => {
         this.rows = rows;
         this.results = results;
         this.overallStatus = status;
+        this.canEditPm = this.canEdit || permissions.canEditPreventiveMaintenance;
         this.draft.clear();
         this.dirty.clear();
         this.inputDraft.clear();
@@ -231,16 +234,16 @@ export class PowerAcKpiComponent implements OnInit {
   }
 
   save(): void {
-    if (!this.canEdit || this.busy) return;
+    if ((!this.canEdit && !this.canEditPm) || this.busy) return;
+    const pmOnly = !this.canEdit;
     const items: PowerAcSaveItem[] = [];
     for (const designation of this.dirty) {
       const entry = this.draft.get(designation);
       if (!entry) continue;
-
       // Achievement % for the other KPIs (the rule-scored KPIs are excluded; they are sent as inputs).
       const achievements: Record<string, number | null> = {};
       for (const [code, v] of Object.entries(entry)) {
-        if (this.isInputCode(code)) continue;
+        if (this.isInputCode(code) || (pmOnly && code !== this.pmCode)) continue;
         if (v !== null && (!Number.isFinite(v) || v < 0 || v > 100)) {
           this.error = 'Achievement % must be a number from 0 to 100.';
           this.cdr.detectChanges();
@@ -252,7 +255,7 @@ export class PowerAcKpiComponent implements OnInit {
       // Only the inputs the user edited are sent, so untouched values (including older saved values) are not changed.
       const inputs: Record<string, number | null> = {};
       const inputDraft = this.inputDraft.get(designation) ?? {};
-      for (const code of this.inputCodes) {
+      for (const code of pmOnly ? [] : this.inputCodes) {
         if (!this.inputTouched.has(`${designation}|${code}`)) continue;
         const v = inputDraft[code] ?? null;
         if (v !== null) {
@@ -272,7 +275,12 @@ export class PowerAcKpiComponent implements OnInit {
 
       // The allocation is not edited here, so it is sent back unchanged.
       const row = this.rows.find(r => r.designation === designation);
-      items.push({ designation, achievements, inputs, areaAllocation: row?.areaAllocation ?? null });
+      items.push({
+        designation,
+        achievements,
+        inputs,
+        areaAllocation: pmOnly ? null : row?.areaAllocation ?? null
+      });
     }
     if (items.length === 0) {
       this.message = 'Nothing to save.';

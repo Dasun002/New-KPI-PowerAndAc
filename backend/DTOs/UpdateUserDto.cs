@@ -3,6 +3,8 @@
  * Data Transfer Object for updating existing user accounts.
  */
 
+using System.ComponentModel.DataAnnotations;
+
 namespace backend.DTOs
 {
     // =========================================================
@@ -12,6 +14,7 @@ namespace backend.DTOs
     public class UpdateUserDto
     {
         // Service ID of the user (optional)
+        [RegularExpression("^[0-9]{6}$", ErrorMessage = "Service ID must be exactly 6 digits.")]
         public string? ServiceId { get; set; }
 
         // Full name of the user (optional)
