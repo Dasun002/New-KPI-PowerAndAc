@@ -56,17 +56,20 @@
             <tr *ngFor="let c of results.components; let i = index">
               <td>{{ i + 1 }}</td>
               <td class="kpi-name">{{ c.name }}</td>
-              <td>{{ c.targetPercent }}%</td>
+              <td>{{ targetText(c) }}</td>
               <td>{{ c.weightPercent }}%</td>
               <td *ngFor="let g of results.groups" class="achievement-cell">
                 {{ achievementText(g.achievement[c.code]) }}
+                <span *ngIf="isLegacyResult(g, c.code)" class="legacy-tag"
+                      title="Entered as an old percentage. Enter the incident count or actual % to use the new calculation.">legacy %</span>
                 <div *ngIf="c.code === 'PM'" class="approval-icon pm-approval"
-                     [ngClass]="isVerified(g.designation) ? 'approved' : 'unapproved'"
+                     [ngClass]="verificationStatusOf(g.designation) === 'Verified' ? 'approved' : (verificationStatusOf(g.designation) === 'VerifiedNeedsReentry' ? 'needs-reentry' : 'unapproved')"
                      [class.is-disabled]="!canVerify || busy"
-                     [title]="!canVerify ? 'Only users who can verify Power & A/C can change this.' : (isVerified(g.designation) ? 'Verified. Click to unverify.' : 'Not verified. Click to verify.')"
+                     [title]="!canVerify ? 'Only users who can verify Power & A/C can change this.' : verificationTitle(g.designation)"
                      (click)="canVerify && !busy && toggleVerified(g.designation)">
-                  <i class="bi bi-check" *ngIf="isVerified(g.designation)"></i>
-                  <i class="bi bi-x" *ngIf="!isVerified(g.designation)"></i>
+                  <i class="bi bi-check" *ngIf="verificationStatusOf(g.designation) === 'Verified'"></i>
+                  <i class="bi bi-exclamation-triangle" *ngIf="verificationStatusOf(g.designation) === 'VerifiedNeedsReentry'"></i>
+                  <i class="bi bi-x" *ngIf="verificationStatusOf(g.designation) !== 'Verified' && verificationStatusOf(g.designation) !== 'VerifiedNeedsReentry'"></i>
                 </div>
               </td>
             </tr>
@@ -77,6 +80,18 @@
               <td>100%</td>
               <td *ngFor="let g of results.groups" class="achievement-cell">{{ percent(g.composite) }}</td>
             </tr>
+            <tr class="verification-row">
+              <td></td>
+              <td class="kpi-name">Verification status</td>
+              <td colspan="2"></td>
+              <td *ngFor="let g of results.groups" class="achievement-cell">
+                <span class="verification-badge" [ngClass]="'status-' + verificationStatusOf(g.designation)"
+                      [title]="verificationTitle(g.designation)">{{ verificationLabel(g.designation) }}</span>
+                <div *ngIf="verificationMissingOf(g.designation).length > 0 && verificationStatusOf(g.designation) !== 'VerifiedNeedsReentry'" class="missing-note">
+                  Missing: {{ verificationMissingOf(g.designation).join(', ') }}
+                </div>
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -86,7 +101,11 @@
     <article class="data-card achievement-card">
       <header>
         <div>
-          <h2>Achievement % Input: Safety, Corrective and Availability</h2>
+          <h2>KPI Input: Safety Incidents, Corrective Action and Availability</h2>
+          <p *ngIf="legacyGroupCount > 0" class="legacy-banner">
+            {{ legacyGroupCount }} engineer group(s) still hold an old Safety or Availability percentage for {{ months[month - 1] }}.
+            Those percentages are kept and still counted. They are not converted automatically.
+          </p>
           <p>
             {{ months[month - 1] }} {{ year }} · Values entered here feed the overview above.
             <button type="button" class="header-link" (click)="save()" [disabled]="busy || !canEdit || unsavedCount === 0">Save values ({{ unsavedCount }})</button>
@@ -104,12 +123,31 @@
           </thead>
           <tbody>
             <tr *ngFor="let c of otherComponents">
-              <td class="kpi-name">{{ c.name }}</td>
+              <td class="kpi-name">{{ c.code === safetyCode ? 'Safety Incident Count' : (c.code === availabilityCode ? 'Actual Availability (%)' : c.name) }}</td>
               <td *ngFor="let r of rows" class="achievement-cell">
-                <input type="number" min="0" max="100" step="0.0001" class="form-control form-control-sm achievement-input"
-                       [disabled]="!canEdit"
-                       [value]="value(r.designation, c.code) ?? ''"
-                       (input)="setValue(r.designation, c.code, $any($event.target).value)">
+                <ng-container *ngIf="isInputCode(c.code); else achievementInput">
+                  <input *ngIf="c.code === safetyCode" type="number" min="0" [attr.max]="safetyMaxIncidents" step="1"
+                         class="form-control form-control-sm achievement-input" title="Number of incidents (0 = no incidents)"
+                         [disabled]="!canEdit"
+                         [attr.placeholder]="isLegacy(r.designation, c.code) ? 'legacy ' + legacyPercentText(r.designation, c.code) : ''"
+                         [value]="inputValue(r.designation, c.code) ?? ''"
+                         (input)="setInput(r.designation, c.code, $any($event.target).value)">
+                  <input *ngIf="c.code === availabilityCode" type="number" min="0" max="100" step="0.0001"
+                         class="form-control form-control-sm achievement-input" title="Actual availability %"
+                         [disabled]="!canEdit"
+                         [attr.placeholder]="isLegacy(r.designation, c.code) ? 'legacy ' + legacyPercentText(r.designation, c.code) : ''"
+                         [value]="inputValue(r.designation, c.code) ?? ''"
+                         (input)="setInput(r.designation, c.code, $any($event.target).value)">
+                  <div *ngIf="isLegacy(r.designation, c.code)" class="legacy-note">
+                    Old % entry ({{ legacyPercentText(r.designation, c.code) }}). Enter the value to convert it.
+                  </div>
+                </ng-container>
+                <ng-template #achievementInput>
+                  <input type="number" min="0" max="100" step="0.0001" class="form-control form-control-sm achievement-input"
+                         [disabled]="!canEdit"
+                         [value]="value(r.designation, c.code) ?? ''"
+                         (input)="setValue(r.designation, c.code, $any($event.target).value)">
+                </ng-template>
               </td>
             </tr>
           </tbody>

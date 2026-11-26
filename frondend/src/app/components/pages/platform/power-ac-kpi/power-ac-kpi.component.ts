@@ -5,13 +5,16 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
+import { kpiScoreText, parseIncidentCount, safetyTargetText } from './power-ac-display';
 import { FormsModule } from '@angular/forms';
-import { forkJoin } from 'rxjs';
+import { catchError, forkJoin, of } from 'rxjs';
 import { AuthService } from '../../../../services/auth.service';
 import {
   PowerAcDataRow,
+  PowerAcGroupResult,
   PowerAcKpiService,
   PowerAcMonthlyCell,
+  PowerAcOverallStatus,
   PowerAcResults,
   PowerAcSaveItem
 } from '../../../../services/power-ac-kpi.service';
@@ -36,11 +39,17 @@ export class PowerAcKpiComponent implements OnInit {
   readonly months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   readonly yearOptions = [2025, 2026, 2027, 2028];
   readonly pmCode = 'PM';
+  // Rule-scored KPIs: the grid enters the typed input, and the server calculates the score.
+  readonly safetyCode = 'SAFETY';
+  readonly availabilityCode = 'AVAILABILITY';
+  readonly inputCodes = ['SAFETY', 'AVAILABILITY'];
+  readonly safetyMaxIncidents = 1000;
 
   year = new Date().getFullYear();
   month = new Date().getMonth() + 1;
   rows: PowerAcDataRow[] = [];
   results: PowerAcResults | null = null;
+  overallStatus: PowerAcOverallStatus | null = null;
   loading = false;
   busy = false;
   message = '';
@@ -51,6 +60,9 @@ export class PowerAcKpiComponent implements OnInit {
   // Edited values per engineer group (designation) and KPI code, and the groups with unsaved edits.
   private draft = new Map<string, Record<string, number | null>>();
   private dirty = new Set<string>();
+  // Typed inputs (incident count, actual availability %) per engineer group, and the ones the user edited.
+  private inputDraft = new Map<string, Record<string, number | null>>();
+  private inputTouched = new Set<string>();
 
   // Read-only monthly distribution and achievement counts, keyed by "month|designation".
   monthly = new Map<string, MonthlyEntry>();
@@ -92,14 +104,22 @@ export class PowerAcKpiComponent implements OnInit {
     forkJoin({
       rows: this.api.getData(this.year, this.month),
       results: this.api.getResults(this.year, this.month),
-      monthly: this.api.getMonthly(this.year)
+      monthly: this.api.getMonthly(this.year),
+      // The overall status is informational. If it cannot be loaded, the page still works.
+      status: this.api.getOverallStatus(this.year).pipe(catchError(() => of(null)))
     }).subscribe({
-      next: ({ rows, results, monthly }) => {
+      next: ({ rows, results, monthly, status }) => {
         this.rows = rows;
         this.results = results;
+        this.overallStatus = status;
         this.draft.clear();
         this.dirty.clear();
-        for (const r of rows) this.draft.set(r.designation, { ...r.achievements });
+        this.inputDraft.clear();
+        this.inputTouched.clear();
+        for (const r of rows) {
+          this.draft.set(r.designation, { ...r.achievements });
+          this.inputDraft.set(r.designation, { ...(r.inputs ?? {}) });
+        }
         this.monthly.clear();
         for (const c of monthly) this.monthly.set(this.monthlyKey(c.month, c.designation), { scheduled: c.scheduled, attended: c.attended, hasRow: c.hasRow, isVerified: c.isVerified });
         this.loading = false;
@@ -111,6 +131,83 @@ export class PowerAcKpiComponent implements OnInit {
 
   value(designation: string, code: string): number | null {
     return this.draft.get(designation)?.[code] ?? null;
+  }
+
+  verificationStatusOf(designation: string): string {
+    return this.rows.find(r => r.designation === designation)?.verificationStatus ?? 'Incomplete';
+  }
+
+  verificationMissingOf(designation: string): string[] {
+    return this.rows.find(r => r.designation === designation)?.verificationMissing ?? [];
+  }
+
+  // Label shown to the user. "Verified" is only ever shown for a group that passes the current requirements.
+  verificationLabel(designation: string): string {
+    switch (this.verificationStatusOf(designation)) {
+      case 'Verified': return 'Verified';
+      case 'VerifiedNeedsReentry': return 'Verified – needs re-entry';
+      case 'ReadyToVerify': return 'Ready to verify';
+      default: return 'Incomplete';
+    }
+  }
+
+  verificationTitle(designation: string): string {
+    const missing = this.verificationMissingOf(designation);
+    if (this.verificationStatusOf(designation) === 'VerifiedNeedsReentry') {
+      return `Verified before the current requirements. Not counted as passing. Missing: ${missing.join(', ') || 'a legacy percentage must be re-entered'}. Click ✓ to unverify, then re-enter.`;
+    }
+    if (missing.length > 0) return `Missing: ${missing.join(', ')}.`;
+    return this.isVerified(designation) ? 'Verified. Click to unverify.' : 'All required values are present. Click to verify.';
+  }
+
+  // True when the score for this KPI comes from an old percentage-only entry (no incident count / actual % yet).
+  isLegacy(designation: string, code: string): boolean {
+    return this.rows.find(r => r.designation === designation)?.legacyCodes?.includes(code) ?? false;
+  }
+
+  isLegacyResult(group: PowerAcGroupResult, code: string): boolean {
+    return group.legacyCodes?.includes(code) ?? false;
+  }
+
+  legacyPercentText(designation: string, code: string): string {
+    return this.achievementText(this.rows.find(r => r.designation === designation)?.achievements?.[code]);
+  }
+
+  // Number of engineer groups still on an old percentage for either rule-scored KPI, in the selected month.
+  get legacyGroupCount(): number {
+    return this.rows.filter(r => (r.legacyCodes ?? []).length > 0).length;
+  }
+
+  isInputCode(code: string): boolean {
+    return this.inputCodes.includes(code);
+  }
+
+  inputValue(designation: string, code: string): number | null {
+    return this.inputDraft.get(designation)?.[code] ?? null;
+  }
+
+  setInput(designation: string, code: string, raw: string): void {
+    const entry = this.inputDraft.get(designation);
+    if (!entry) return;
+    if (code === this.safetyCode) {
+      const parsed = parseIncidentCount(raw);
+      if (!parsed.ok) {
+        this.error = parsed.message;
+        this.cdr.detectChanges();
+        return;
+      }
+      entry[code] = parsed.value;
+    } else {
+      const trimmed = raw.trim();
+      entry[code] = trimmed === '' ? null : Number(trimmed);
+    }
+    this.inputTouched.add(`${designation}|${code}`);
+    this.dirty.add(designation);
+  }
+
+  // Target text for the overview: safety is a number of incidents, the others are percentages.
+  targetText(c: { code: string; targetPercent: number }): string {
+    return c.code === this.safetyCode ? safetyTargetText(c.targetPercent) : `${c.targetPercent}%`;
   }
 
   setValue(designation: string, code: string, raw: string): void {
@@ -139,16 +236,43 @@ export class PowerAcKpiComponent implements OnInit {
     for (const designation of this.dirty) {
       const entry = this.draft.get(designation);
       if (!entry) continue;
-      for (const v of Object.values(entry)) {
+
+      // Achievement % for the other KPIs (the rule-scored KPIs are excluded; they are sent as inputs).
+      const achievements: Record<string, number | null> = {};
+      for (const [code, v] of Object.entries(entry)) {
+        if (this.isInputCode(code)) continue;
         if (v !== null && (!Number.isFinite(v) || v < 0 || v > 100)) {
           this.error = 'Achievement % must be a number from 0 to 100.';
           this.cdr.detectChanges();
           return;
         }
+        achievements[code] = v;
       }
+
+      // Only the inputs the user edited are sent, so untouched values (including older saved values) are not changed.
+      const inputs: Record<string, number | null> = {};
+      const inputDraft = this.inputDraft.get(designation) ?? {};
+      for (const code of this.inputCodes) {
+        if (!this.inputTouched.has(`${designation}|${code}`)) continue;
+        const v = inputDraft[code] ?? null;
+        if (v !== null) {
+          if (code === this.safetyCode && (!Number.isInteger(v) || v < 0 || v > this.safetyMaxIncidents)) {
+            this.error = `Critical Safety incidents must be a whole number from 0 to ${this.safetyMaxIncidents}.`;
+            this.cdr.detectChanges();
+            return;
+          }
+          if (code === this.availabilityCode && (!Number.isFinite(v) || v < 0 || v > 100)) {
+            this.error = 'Power System Availability % must be a number from 0 to 100.';
+            this.cdr.detectChanges();
+            return;
+          }
+        }
+        inputs[code] = v;
+      }
+
       // The allocation is not edited here, so it is sent back unchanged.
       const row = this.rows.find(r => r.designation === designation);
-      items.push({ designation, achievements: { ...entry }, areaAllocation: row?.areaAllocation ?? null });
+      items.push({ designation, achievements, inputs, areaAllocation: row?.areaAllocation ?? null });
     }
     if (items.length === 0) {
       this.message = 'Nothing to save.';
@@ -172,7 +296,13 @@ export class PowerAcKpiComponent implements OnInit {
     this.busy = true;
     this.error = '';
     this.api.verify(this.year, this.month).subscribe({
-      next: r => { this.busy = false; this.message = r.message; this.load(); },
+      next: r => {
+        this.busy = false;
+        this.load();   // load() clears the banners, so the result is shown after it starts
+        this.message = r.message;
+        if (r.issues.length > 0) this.error = r.issues.map(i => i.message).join(' ');
+        this.cdr.detectChanges();
+      },
       error: err => { this.busy = false; this.fail(err, 'verify Power & A/C values'); }
     });
   }
@@ -247,7 +377,7 @@ export class PowerAcKpiComponent implements OnInit {
   }
 
   achievementText(value: number | null | undefined): string {
-    return value === null || value === undefined ? '—' : `${Number(value).toFixed(2)}%`;
+    return kpiScoreText(value);
   }
 
   statusClass(status: string | null | undefined): string {

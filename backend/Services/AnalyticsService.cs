@@ -97,6 +97,8 @@ namespace backend.Services
                     .ToListAsync();
                 foreach (var group in PowerAcCalculator.Calculate(data, components, pointsApplicable))
                 {
+                    // Only Complete groups (verified, all values present, allocated) contribute. Unverified or incomplete groups never do.
+                    if (group.Status != "Complete") continue;
                     var area = regions.FirstOrDefault(r => r.NetworkEngineer == group.Code)?.LeaCode ?? string.Empty;
                     if (area.Length == 0) continue;
                     for (var i = 0; i < components.Count; i++)

@@ -48,6 +48,13 @@ namespace backend.Models.PowerAc
         [Column("availability_achievement")]
         public decimal? AvailabilityAchievement { get; set; }
 
+        // Typed inputs for the two KPIs scored by rule. The achievement columns above hold the calculated score.
+        [Column("safety_incident_count")]
+        public int? SafetyIncidentCount { get; set; }
+
+        [Column("availability_actual_pct")]
+        public decimal? AvailabilityActualPct { get; set; }
+
         // Achievement % of KPIs other than the four fixed columns: a JSON object {code: value}.
         [Column("achievements_json")]
         public string? AchievementsJson { get; set; }

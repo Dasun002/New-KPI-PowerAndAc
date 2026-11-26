@@ -3,7 +3,8 @@
  * Power & A/C KPI rules and calculation. The rules are in code, as they are for the other KPIs; the data is in
  * dbo.PowerAcPmData.
  *
- *   component score   = Achievement % / 100 (each component's Achievement % is entered directly)
+ *   component score   = Achievement % / 100. Preventive Maintenance, Corrective Action are entered as Achievement %.
+ *                       Critical Safety and Availability are scored from their inputs on save (PowerAcScoring).
  *   composite         = sum(score x weight / 100); weights are 25% each
  *   maximum points    = Points Applicable (KPI 2017) x group allocation / total of all allocations
  *   points achieved   = maximum if composite > target (1), otherwise maximum x composite / target
@@ -66,6 +67,9 @@ namespace backend.Services.PowerAc
         public decimal? PointsAchieved { get; set; }
         public string Status { get; set; } = "Incomplete";
         public List<string> Issues { get; } = new();
+        // Rule-scored KPIs (SAFETY, AVAILABILITY) whose score comes from an old percentage-only entry.
+        // These are still scored as saved. They are reported so the user can re-enter the input. Not an issue.
+        public List<string> LegacyCodes { get; } = new();
     }
 
     public static class PowerAcCalculator
@@ -81,6 +85,54 @@ namespace backend.Services.PowerAc
             "AVAILABILITY" => row.AvailabilityAchievement,
             _ => ReadJson(row.AchievementsJson).TryGetValue(code, out var v) ? v : null
         };
+
+        public const string MonthlyDistributionRequirement = "Monthly distribution (Scheduled or Attended)";
+
+        // The requirements for verifying a group. Used by both the bulk and the single-group verification, so they always match.
+        // Zero is a valid value; only null is missing. A legacy percentage-only Safety or Availability entry has no typed input,
+        // so it counts as missing. The monthly distribution is satisfied by a Scheduled or an Attended value (0 included).
+        public static List<string> MissingVerificationInputs(PowerAcPmData row)
+        {
+            var missing = new List<string>();
+            if (row.PmAchievement is null) missing.Add("PM Achievement");
+            if (row.SafetyIncidentCount is null) missing.Add("Critical Safety Incident Count");
+            if (row.CorrectiveAchievement is null) missing.Add("Corrective Action Achievement");
+            if (row.AvailabilityActualPct is null) missing.Add("Actual Power System Availability");
+            if (row.AreaAllocation is null) missing.Add("Area Allocation");
+            if (row.Scheduled is null && row.Attended is null) missing.Add(MonthlyDistributionRequirement);
+            return missing;
+        }
+
+        public static string VerificationMessage(string designation, IEnumerable<string> missing) =>
+            $"Cannot verify {designation}. Missing: {string.Join(", ", missing)}.";
+
+        // Verified = passes the requirements and is verified. VerifiedNeedsReentry = verified, but no longer passes
+        // (for example a legacy percentage, or a value that was never entered). Ready = passes, not yet verified. Incomplete = missing values.
+        public const string StatusVerified = "Verified";
+        public const string StatusVerifiedNeedsReentry = "VerifiedNeedsReentry";
+        public const string StatusReady = "ReadyToVerify";
+        public const string StatusIncomplete = "Incomplete";
+
+        public static string VerificationStatusOf(PowerAcPmData row)
+        {
+            var passes = MissingVerificationInputs(row).Count == 0;
+            if (row.IsVerified) return passes && LegacyCodesOf(row).Count == 0 ? StatusVerified : StatusVerifiedNeedsReentry;
+            return passes ? StatusReady : StatusIncomplete;
+        }
+
+        public static bool HasAnyVerificationInput(PowerAcPmData row) =>
+            row.PmAchievement is not null || row.SafetyIncidentCount is not null || row.CorrectiveAchievement is not null ||
+            row.AvailabilityActualPct is not null || row.AreaAllocation is not null ||
+            row.Scheduled is not null || row.Attended is not null;
+
+        // Rule-scored KPIs that hold an old percentage-only entry: the score exists but the typed input does not.
+        public static List<string> LegacyCodesOf(PowerAcPmData row)
+        {
+            var codes = new List<string>();
+            if (row.SafetyIncidentCount is null && row.SafetyAchievement is not null) codes.Add(PowerAcScoring.SafetyCode);
+            if (row.AvailabilityActualPct is null && row.AvailabilityAchievement is not null) codes.Add(PowerAcScoring.AvailabilityCode);
+            return codes;
+        }
 
         public static void SetAchievement(PowerAcPmData row, string code, decimal? value)
         {
@@ -116,7 +168,17 @@ namespace backend.Services.PowerAc
                 if (row is null) result.Issues.Add("No data row for this engineer group and month.");
                 if (components.Count == 0) result.Issues.Add("No Power & A/C KPIs are configured.");
                 foreach (var c in components)
-                    if (result.Achievement[c.Code] is null) result.Issues.Add($"{c.Name} Achievement % is missing.");
+                {
+                    if (result.Achievement[c.Code] is not null) continue;
+                    result.Issues.Add(c.Code switch
+                    {
+                        PowerAcScoring.SafetyCode => "Critical Safety incident count is missing.",
+                        PowerAcScoring.AvailabilityCode => "Power System Availability actual % is missing.",
+                        _ => $"{c.Name} Achievement % is missing.",
+                    });
+                }
+                if (row is not null)
+                    result.LegacyCodes.AddRange(LegacyCodesOf(row).Where(code => components.Any(c => c.Code == code)));
                 if (result.AllocationValue is null) result.Issues.Add("Area allocation is missing.");
                 if (row is not null && !row.IsVerified) result.Issues.Add("Data is not verified.");
                 results.Add(result);

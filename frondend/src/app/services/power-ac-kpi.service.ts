@@ -41,6 +41,13 @@ export interface PowerAcDataRow {
   engineerGroupCode: string;
   label: string;
   achievements: Record<string, number | null>;
+  // Typed inputs for the rule-scored KPIs: SAFETY = incident count, AVAILABILITY = actual %.
+  inputs: Record<string, number | null>;
+  // Rule-scored KPIs held as an old percentage only (no typed input yet).
+  legacyCodes: string[];
+  // Verified | VerifiedNeedsReentry | ReadyToVerify | Incomplete, and the requirements still missing.
+  verificationStatus: string;
+  verificationMissing: string[];
   areaAllocation: number | null;
   isVerified: boolean;
   enteredBy: string | null;
@@ -49,7 +56,10 @@ export interface PowerAcDataRow {
 
 export interface PowerAcSaveItem {
   designation: string;
+  // Achievement % for the other KPIs. Do not include SAFETY or AVAILABILITY here.
   achievements: Record<string, number | null>;
+  // Only the rule-scored KPIs that were edited. A key that is missing is left unchanged on the server.
+  inputs?: Record<string, number | null>;
   areaAllocation: number | null;
 }
 
@@ -68,6 +78,7 @@ export interface PowerAcGroupResult {
   label: string;
   designation: string;
   achievement: Record<string, number | null>;
+  legacyCodes: string[];
   allocationValue: number | null;
   isVerified: boolean;
   composite: number | null;
@@ -90,6 +101,25 @@ export interface PowerAcResults {
   groups: PowerAcGroupResult[];
 }
 
+// Result of "Verify values". A group with a missing value is not verified and is listed in issues.
+export interface PowerAcVerifyResult {
+  message: string;
+  verified: number;
+  skipped: number;
+  verifiedDesignations: string[];
+  issues: { designation: string; missing: string[]; message: string }[];
+}
+
+export interface PowerAcOverallStatus {
+  year: number;
+  months: {
+    month: number;
+    lastValuesChanged: string | null;
+    lastOverallCalculated: string | null;
+    needsRecalculation: boolean;
+  }[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class PowerAcKpiService {
   private readonly base = `${environment.apiUrl}/power-ac`;
@@ -104,8 +134,8 @@ export class PowerAcKpiService {
     return this.http.put<{ saved: number; message: string }>(`${this.base}/data`, { year, month, items });
   }
 
-  verify(year: number, month: number): Observable<{ verified: number; skipped: number; message: string }> {
-    return this.http.post<{ verified: number; skipped: number; message: string }>(`${this.base}/data/verify`, {}, { params: { year, month } });
+  verify(year: number, month: number): Observable<PowerAcVerifyResult> {
+    return this.http.post<PowerAcVerifyResult>(`${this.base}/data/verify`, {}, { params: { year, month } });
   }
 
   getMonthly(year: number): Observable<PowerAcMonthlyCell[]> {
@@ -131,6 +161,11 @@ export class PowerAcKpiService {
 
   deleteKpi(id: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/config/kpis/${id}`);
+  }
+
+  // Per month: when the Power & A/C values last changed, when the overall result was last calculated, and whether it needs a recalculation.
+  getOverallStatus(year: number): Observable<PowerAcOverallStatus> {
+    return this.http.get<PowerAcOverallStatus>(`${this.base}/overall-status`, { params: { year } });
   }
 
   getResults(year: number, month: number): Observable<PowerAcResults> {

@@ -24,7 +24,7 @@ The Power & A/C part of the system covers four measures for each engineer group:
 Follow the steps in [database/power-ac/README.md](database/power-ac/README.md). In short:
 
 1. Make a full backup of the database.
-2. Run script `006`, then script `007`.
+2. Run scripts `006`, then `007`, then `008`.
 
 ## Starting the system
 
@@ -32,5 +32,5 @@ The backend and frontend are standard projects. They must be built and started b
 
 ## Important notes
 
-- Only the Power & A/C scripts `006` and `007` are needed for this release. Earlier scripts have been removed because they are no longer used.
+- Only the Power & A/C scripts `006`, `007`, and `008` are needed for this release. Earlier scripts have been removed because they are no longer used.
 - Do not share database passwords or connection strings in this folder.
